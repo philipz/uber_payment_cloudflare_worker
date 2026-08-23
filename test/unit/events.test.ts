@@ -13,17 +13,17 @@ const event = (over: Partial<DomainEvent> = {}): DomainEvent => ({
 });
 
 describe('formatEventLog', () => {
-  it.skip('最小事件只輸出 state 與 account，且不含尾隨空白', () => {
+  it('最小事件只輸出 state 與 account，且不含尾隨空白', () => {
     expect(formatEventLog(event())).toBe('[event] Committed account=acct-1');
   });
 
-  it.skip('交易事件輸出 txn 欄位', () => {
+  it('交易事件輸出 txn 欄位', () => {
     expect(formatEventLog(event({ state: TxnState.Ingested, transactionId: 'tx1' }))).toBe(
       '[event] Ingested account=acct-1 txn=tx1',
     );
   });
 
-  it.skip('批次事件輸出 batch 與 az 欄位', () => {
+  it('批次事件輸出 batch 與 az 欄位', () => {
     expect(
       formatEventLog(
         event({ state: TxnState.Accumulating, accountId: 'a2', batchId: 'b9', az: 'az-2' }),
@@ -31,13 +31,13 @@ describe('formatEventLog', () => {
     ).toBe('[event] Accumulating account=a2 batch=b9 az=az-2');
   });
 
-  it.skip('提交後輸出版本與餘額欄位', () => {
+  it('提交後輸出版本與餘額欄位', () => {
     expect(formatEventLog(event({ version: 3, balance: 1000 }))).toBe(
       '[event] Committed account=acct-1 ver=3 bal=1000',
     );
   });
 
-  it.skip('空字串欄位不出現在 detail 中', () => {
+  it('空字串欄位不出現在 detail 中', () => {
     expect(formatEventLog(event({ transactionId: '', batchId: '' }))).toBe(
       '[event] Committed account=acct-1',
     );
@@ -45,7 +45,7 @@ describe('formatEventLog', () => {
 });
 
 describe('emitEventLog', () => {
-  it.skip('透過注入 logger 輸出格式化的事件行', () => {
+  it('透過注入 logger 輸出格式化的事件行', () => {
     const logger = vi.fn();
     emitEventLog(event({ transactionId: 'tx1', version: 2 }), logger);
     expect(logger).toHaveBeenCalledTimes(1);

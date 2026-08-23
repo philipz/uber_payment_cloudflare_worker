@@ -7,33 +7,33 @@ import { loadConfig, type Config } from '../../src/shared/config';
 const baseEnv = (): Record<string, unknown> => ({ SERVICE_NAME: 'svc', AZ_ID: 'az-1' });
 
 describe('loadConfig', () => {
-  it.skip('在沒有環境變數時回傳預設值', () => {
+  it('在沒有環境變數時回傳預設值', () => {
     const cfg = loadConfig({});
     expect(cfg.serviceName).toBe('unknown');
     expect(cfg.azId).toBe('az-local');
     expect(cfg.logLevel).toBe('info');
   });
 
-  it.skip('讀取環境變數覆寫（serviceName / azId / logLevel）', () => {
+  it('讀取環境變數覆寫（serviceName / azId / logLevel）', () => {
     const cfg = loadConfig({ ...baseEnv(), LOG_LEVEL: 'debug' });
     expect(cfg).toEqual({ serviceName: 'svc', azId: 'az-1', logLevel: 'debug' } satisfies Config);
   });
 
-  it.skip('空字串視同未設定並回退預設值', () => {
+  it('空字串視同未設定並回退預設值', () => {
     const cfg = loadConfig({ SERVICE_NAME: '', AZ_ID: '', LOG_LEVEL: '' });
     expect(cfg.serviceName).toBe('unknown');
     expect(cfg.azId).toBe('az-local');
     expect(cfg.logLevel).toBe('info');
   });
 
-  it.skip('非字串環境值（undefined / null / 數字）安全回退預設值', () => {
+  it('非字串環境值（undefined / null / 數字）安全回退預設值', () => {
     const cfg = loadConfig({ SERVICE_NAME: undefined, AZ_ID: null, LOG_LEVEL: 3 });
     expect(cfg.serviceName).toBe('unknown');
     expect(cfg.azId).toBe('az-local');
     expect(cfg.logLevel).toBe('info');
   });
 
-  it.skip('無參數呼叫時回傳預設值（不 throw）', () => {
+  it('無參數呼叫時回傳預設值（不 throw）', () => {
     const cfg = loadConfig();
     expect(cfg.serviceName).toBe('unknown');
   });
