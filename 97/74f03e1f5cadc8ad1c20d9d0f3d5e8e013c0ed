@@ -1,0 +1,14 @@
+README.md
+  h_1b119f25eaf333 1-229
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "9774f03e1f5cadc8ad1c20d9d0f3d5e8e013c0ed",
+  "prompts": {},
+  "humans": {
+    "h_1b119f25eaf333": {
+      "author": "philipz <philipzheng@gmail.com>"
+    }
+  }
+}
