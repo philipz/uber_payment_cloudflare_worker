@@ -1,0 +1,37 @@
+# uber_payment_cloudflare_worker CI（Cloudflare Worker 試點）。
+#
+# 目的：factory/* PR（base=software-factory 或串聯前一層 factory/*）每層獨立跑測試
+# ——docs/07 §2.2「每層獨立綠燈」的 CI 保證（試點 #3 教訓：觸發條件必須涵蓋
+# software-factory 與 factory/**，否則只有最底層觸發）。
+#
+# 現況：repo 尚無 package.json（空骨架）——guard 在 package.json 出現前跳過測試，
+# 保持綠燈；骨架落地後本 workflow 自動生效。
+name: Tests
+
+on:
+  push:
+    branches: [main, software-factory]
+  pull_request:
+    # 串聯 stacked PR 的中間層 base 是前一層分支（factory/*）
+    branches: [main, software-factory, 'factory/**']
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Run tests
+        run: |
+          if [ -f package.json ]; then
+            npm ci
+            npm test
+          else
+            echo "repo 尚無 package.json（空骨架）——跳過測試；骨架落地後本步驟自動生效"
+          fi

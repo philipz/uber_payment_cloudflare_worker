@@ -1,0 +1,24 @@
+# uber_payment_cloudflare_worker catalog（Cloudflare Worker 試點；repo 目前為空骨架，
+# 依領域意圖登錄，2026-08-22）。
+#
+# 三軸（docs/03 §2.2、docs/06 §3）：business-criticality / risk-profile / complexity。
+# 此 Worker 與 uber payment 領域相關（可能承載支付/賬本/對外 API），保守採高風險輪廓：
+# 多數工作項落在 in-loop（人類主導）。計分 = strategic(2) + high(2) + low(0) = 4 →
+# oversight/review（agent 實跑、PR 需人類審查），與 spring-modulith-orders 同模式。
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: uber-payment-cloudflare-worker
+  description: uber payment 相關的 Cloudflare Worker（TypeScript / Wrangler）
+  annotations:
+    # 三軸評分（0–2 每軸；總分 6 為最高風險，直接 in-loop）
+    factory.io/business-criticality: strategic
+    factory.io/risk-profile: high
+    factory.io/complexity: low
+    # 技術棧 annotation
+    factory.io/stack: typescript-cloudflare
+    factory.io/test-framework: vitest
+spec:
+  type: service
+  lifecycle: production
+  owner: group:default/factory-team

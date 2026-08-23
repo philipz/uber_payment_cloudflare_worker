@@ -1,0 +1,27 @@
+# uber_payment_cloudflare_worker CODEOWNERS（Cloudflare Worker 試點）。
+#
+# 高風險路徑指定人類審查者；repo 目前為空骨架，patterns 依慣例**預先宣告**，
+# 程式碼落地後修訂。依實際團隊成員調整。
+
+# 財務核心（H2）
+src/**/payment/                @philipz
+src/**/ledger/                 @philipz
+src/**/billing/                @philipz
+
+# 設定 / 連線資訊（H3）
+wrangler.toml                  @philipz
+src/**/config.ts               @philipz
+src/**/secrets.ts              @philipz
+
+# schema 遷移（H6）
+migrations/                    @philipz
+
+# 對外 API / 路由（H7）
+src/index.ts                   @philipz
+src/routes/                    @philipz
+
+# guardrail 自身（H5）——agent 不得修改；改動須人類審查
+.github/                       @philipz
+CODEOWNERS                     @philipz
+catalog-info.yaml              @philipz
+.dsh/skills/                   @philipz
