@@ -1,0 +1,19 @@
+# 依賴安裝目錄
+node_modules/
+
+# 本機暫存 / 建置產物
+dist/
+dev-dist/
+.wrangler/
+.deploy/
+
+# 本機開發用機密（真實值不得進入 git；範例請見 .dev.vars.example）
+.dev.vars
+
+# 工廠執行時期的暫存檔（不可提交）
+.factory/run/
+.npm-cache/
+
+# 系統 / 編輯器
+.DS_Store
+*.log

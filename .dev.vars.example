@@ -1,0 +1,7 @@
+# 本機開發用環境變數範例（placeholder —— 請填入你自已的值後另存為 .dev.vars）
+# 注意：真實 .dev.vars 已在 .gitignore，絕不會進入 git。
+# 機密一律走 Cloudflare secrets（`wrangler secret put <NAME>`），不要在 .dev.vars 放正式值。
+
+# 範例（依實際需要增刪）：
+# SOME_API_BASE_URL=https://api.example.com
+# LOG_LEVEL=info
