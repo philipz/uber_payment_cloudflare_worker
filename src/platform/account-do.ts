@@ -141,15 +141,18 @@ export class AccountDO extends DurableObject<Env> {
     windowStart: number,
     txns: TransactionInput[],
   ): Promise<void> {
-    const db = this.env.DB;
+    // D1 Sessions（first-primary）：read-your-writes 消除讀副本延遲競態（研究 §1.2 實測教訓）——
+    // DO 提交後下一次 flush 若讀到舊版本，OCC 重試的 stale batch 會寫入無 guard 的 audit 列
+    // （processed 有 ON CONFLICT 擋、audit 無），造成 audit 多寫。session 讓同 commit 內讀寫一致。
+    const session = this.env.DB.withSession('first-primary');
     for (let attempt = 0; attempt < MAX_OCC_RETRIES; attempt++) {
-      const acc = await db
+      const acc = await session
         .prepare('SELECT balance, version FROM accounts WHERE id = ?')
         .bind(accountId)
         .first<{ balance: number; version: number }>();
       if (!acc) {
         // 帳戶不存在 → 自動建立（與來源「種子後任意帳戶可收單」語意一致；並發首筆由 OR IGNORE 吸收）
-        await db
+        await session
           .prepare('INSERT OR IGNORE INTO accounts (id, balance, version) VALUES (?, 0, 0)')
           .bind(accountId)
           .run();
@@ -157,7 +160,7 @@ export class AccountDO extends DurableObject<Env> {
       }
 
       // 冪等去重：排除已套用與批次內重複（來源 dedupeTransactions 語意）
-      const processed = await db
+      const processed = await session
         .prepare('SELECT transaction_id FROM processed_transactions WHERE account_id = ?')
         .bind(accountId)
         .all<{ transaction_id: string }>();
@@ -171,18 +174,18 @@ export class AccountDO extends DurableObject<Env> {
       const nowSec = Math.floor(Date.now() / 1000);
 
       const stmts: D1PreparedStatement[] = [
-        db
+        session
           .prepare('UPDATE accounts SET balance = ?, version = version + 1 WHERE id = ? AND version = ?')
           .bind(newBalance, accountId, acc.version),
         ...deduped.map((t, i) =>
-          db
+          session
             .prepare(
               'INSERT INTO processed_transactions (transaction_id, account_id, applied_version, balance_after, created_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(transaction_id) DO NOTHING',
             )
             .bind(t.transactionId, accountId, newVersion, steps[i].balanceAfter, nowSec),
         ),
         ...deduped.map((t, i) =>
-          db
+          session
             .prepare('INSERT INTO audit (account_id, micro_uac, status, created_at) VALUES (?, ?, ?, ?)')
             .bind(
               accountId,
@@ -201,7 +204,7 @@ export class AccountDO extends DurableObject<Env> {
         ),
       ];
 
-      const results = await db.batch(stmts);
+      const results = await session.batch(stmts);
       // 單一寫入者：版本衝突結構性不可能；guard 為防禦性（來源 OCC 語意），衝突時 jitter 重試
       if (results[0].meta.changes === 0) {
         const jitter = 5 + Math.random() * 20;

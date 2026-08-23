@@ -10,7 +10,7 @@ compatibility_date = "2025-06-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "uber-payment-poc"
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "4bd5f27e-edac-47c4-a1e2-f14dd19b7f28"
 migrations_dir = "./migrations"
 
 # Account DO：Hot Account 串行化 + 250ms 窗口歸集（單一寫入者）
