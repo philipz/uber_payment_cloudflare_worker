@@ -144,6 +144,11 @@ export class AccountDO extends DurableObject<Env> {
     // D1 Sessions（first-primary）：read-your-writes 消除讀副本延遲競態（研究 §1.2 實測教訓）——
     // DO 提交後下一次 flush 若讀到舊版本，OCC 重試的 stale batch 會寫入無 guard 的 audit 列
     // （processed 有 ON CONFLICT 擋、audit 無），造成 audit 多寫。session 讓同 commit 內讀寫一致。
+    // 雙層防護（遠端實測 2026-08-23：同窗口兩次 flush 可併發——平台輸入閘對 D1 子請求不持鎖）：
+    //  1) D1 Sessions first-primary：同 commit 內 read-your-writes；
+    //  2) changes() 門控：batch 中 UPDATE 影響 0 列（版本不符/stale）時，processed 與 audit 的
+    //     INSERT...SELECT...WHERE changes()=1 整批不寫——D1 batch 只對「語句失敗」rollback，
+    //     不對「UPDATE 0 列」rollback，門控讓 stale batch 完全無副作用，重試即乾淨。
     const session = this.env.DB.withSession('first-primary');
     for (let attempt = 0; attempt < MAX_OCC_RETRIES; attempt++) {
       const acc = await session
@@ -180,13 +185,13 @@ export class AccountDO extends DurableObject<Env> {
         ...deduped.map((t, i) =>
           session
             .prepare(
-              'INSERT INTO processed_transactions (transaction_id, account_id, applied_version, balance_after, created_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(transaction_id) DO NOTHING',
+              'INSERT INTO processed_transactions (transaction_id, account_id, applied_version, balance_after, created_at) SELECT ?, ?, ?, ?, ? WHERE changes() = 1 ON CONFLICT(transaction_id) DO NOTHING',
             )
             .bind(t.transactionId, accountId, newVersion, steps[i].balanceAfter, nowSec),
         ),
         ...deduped.map((t, i) =>
           session
-            .prepare('INSERT INTO audit (account_id, micro_uac, status, created_at) VALUES (?, ?, ?, ?)')
+            .prepare('INSERT INTO audit (account_id, micro_uac, status, created_at) SELECT ?, ?, ?, ? WHERE changes() = 1')
             .bind(
               accountId,
               microUacFor({
