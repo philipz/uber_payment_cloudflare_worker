@@ -1,10 +1,35 @@
-# uber_payment_cloudflare_worker — wrangler 設定（placeholder，無真機密）
-# Factory Item 1：僅建立骨架，未實作業務邏輯。真實 binding / 機密於後續工作項加入，
+# uber_payment_cloudflare_worker — wrangler 設定（Item 6：金流核心 bindings）
 # 機密一律走 Cloudflare secrets（wrangler secret put），不在此檔或 .dev.vars 提交。
+# database_id 為本機/測試佔位；部署前以 `wrangler d1 create uber-payment-poc` 的實際 id 取代。
 
 name = "uber-payment-cloudflare-worker"
 main = "src/index.ts"
-compatibility_date = "2024-11-01"
+compatibility_date = "2025-06-01"
 
-# 本機開發用變數範例導向 .dev.vars.example；真實 .dev.vars 已被 gitignore，不會進入 git。
-# 此 placeholder 僅定義服務名稱與入口，未含任何敏感資訊。
+# D1：accounts / processed_transactions / audit（語意對應來源 Postgres）
+[[d1_databases]]
+binding = "DB"
+database_name = "uber-payment-poc"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "./migrations"
+
+# Account DO：Hot Account 串行化 + 250ms 窗口歸集（單一寫入者）
+[[durable_objects.bindings]]
+name = "ACCOUNT_DO"
+class_name = "AccountDO"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["AccountDO"]
+
+# Queues：finalize 下游通知（at-least-once；consumer 側冪等）。
+# finalize-dlq 為死信佇列名稱（部署前以 `wrangler queues create finalize-dlq` 建立）
+[[queues.producers]]
+binding = "FINALIZE_QUEUE"
+queue = "finalize-queue"
+
+[[queues.consumers]]
+queue = "finalize-queue"
+max_batch_size = 10
+max_retries = 3
+dead_letter_queue = "finalize-dlq"
