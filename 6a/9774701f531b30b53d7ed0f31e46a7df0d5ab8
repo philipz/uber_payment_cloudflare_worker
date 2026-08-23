@@ -1,0 +1,18 @@
+src/shared/operations.ts
+  h_1b119f25eaf333 1-55
+src/shared/types.ts
+  h_1b119f25eaf333 1-99
+test/unit/operations.test.ts
+  h_1b119f25eaf333 1-70
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "6a9774701f531b30b53d7ed0f31e46a7df0d5ab8",
+  "prompts": {},
+  "humans": {
+    "h_1b119f25eaf333": {
+      "author": "philipz <philipzheng@gmail.com>"
+    }
+  }
+}
