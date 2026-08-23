@@ -26,7 +26,9 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: '22'
-          cache: npm
+          # 空骨架尚無 lockfile——setup-node 的 cache:npm 找不到 lockfile 會直接報錯，
+          # 故只有在 lockfile 存在時才啟用快取（hashFiles 慣用寫法）
+          cache: ${{ hashFiles('**/package-lock.json') && 'npm' || '' }}
       - name: Run tests
         run: |
           if [ -f package.json ]; then
