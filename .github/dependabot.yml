@@ -1,0 +1,20 @@
+version: 2
+updates:
+  # npm 生態：目前 repo 為空骨架（尚無 package.json）——Dependabot 會略過該目錄，
+  # 一旦 package.json/package-lock.json 落地即自動生效
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: friday
+    open-pull-requests-limit: 10
+    labels:
+      - dependencies
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: friday
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
