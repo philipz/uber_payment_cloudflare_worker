@@ -1,35 +1,44 @@
-# uber_payment_cloudflare_worker risk hard rules（Cloudflare Worker 試點；repo 目前為空骨架
-#（僅 LICENSE），patterns 依 Cloudflare Worker + TypeScript 慣例**預先宣告**，2026-08-22）。
-# 程式碼落地後請依實際結構修訂本檔（此檔位於 .github/ 下、受 CODEOWNERS 保護，agent 不得修改）。
+# uber_payment_cloudflare_worker risk hard rules（Cloudflare Worker 試點；移植計畫精準化版，
+# 依「uber_payment_poc → Worker 移植」結構修訂，2026-08-23）。
+# 修訂原則（人類治理）：只精準化、不降級真金流核心。此檔位於 .github/ 下、受 CODEOWNERS
+# 保護——agent 不得修改約束自己的規則（H5）。
 #
 # 觸及下列任一 pattern → risk = 2，無裁量空間（docs/06 §3.2, §5.2）。
-# H1–H4 源自 Gartner G00843405；H5–H7 為本專案擴充（guardrail 自我保護與不可逆操作）。
+# H1–H4 源自 Gartner G00843405；H5–H7 為本專案擴充。
+#
+# 結構盤點（移植計畫，2026-08-23）：
+#   src/domain/（純 TS 金流邏輯：operations/microuac 等——屬 H2 金流計算）
+#   src/platform/（DO/D1/Queues 語意對映層——窗口歸集/可靠佇列/OCC 編排，屬 H2）
+#   src/routes/（Hono 對外路由，屬 H7）
+#   src/**/db、repositories（D1 資料存取，屬 H4）
+#   .dev.vars / secrets（真機密，屬 H3；placeholder 設定檔不算）
+#   migrations/（D1 SQL，屬 H6）
 hard_rules:
-  # H1 — 授權/認證邏輯（Worker 常以 middleware/路由守衛處理 auth；此 repo 尚無，保留 pattern 以防新增）
+  # H1 — 授權/認證邏輯（此 repo 目前無 auth；保留 pattern 以防新增）
   H1:
     - "src/**/auth/**"
     - "src/**/middleware/**"
     - "src/**/jwt*"
     - "src/**/UserDetails*"
 
-  # H2 — 財務計算（若此 Worker 承載支付/賬本/計費邏輯——核心路徑）
+  # H2 — 財務計算（金流核心，不得降級）：批次處理編排、DO 語意對映層、餘額運算與審計編碼
   H2:
+    - "src/platform/**"
+    - "src/shared/operations.ts"
+    - "src/shared/microuac.ts"
     - "src/**/payment/**"
     - "src/**/ledger/**"
     - "src/**/billing/**"
-    - "src/**/operations.ts"
 
-  # H3 — 敏感資料處理（wrangler secrets、.dev.vars、連線設定）
+  # H3 — 敏感資料處理（真機密：僅 secrets 與憑證檔；placeholder 設定檔不含敏感資料，不列）
   H3:
-    - "wrangler.toml"
-    - "wrangler.json*"
     - "**/.dev.vars*"
-    - "src/**/config.ts"
-    - "src/**/secrets.ts"
+    - "**/secrets.ts"
+    - "**/*.pem"
+    - "**/*.key"
 
-  # H4 — systems of record 與共用模組（D1/KV/R2 存取層、跨 handler 共用）
+  # H4 — systems of record 與共用模組（D1 資料存取層、repository）
   H4:
-    - "src/shared/**"
     - "src/**/db/**"
     - "src/**/repositories/**"
 
@@ -40,15 +49,13 @@ hard_rules:
     - "catalog-info.yaml"
     - ".dsh/skills/**"
 
-  # H6 — 不可逆 schema 遷移（Cloudflare D1 SQL migration）
+  # H6 — 不可逆 schema 遷移（D1 SQL migration）
   H6:
     - "migrations/**"
     - "**/*.sql"
 
-  # H7 — 對外 API 破壞性變更（Worker fetch handler 路由、request/response 契約）
+  # H7 — 對外 API 破壞性變更（Worker fetch handler 路由、事件契約）
   H7:
     - "src/index.ts"
     - "src/routes/**"
-    - "src/**/routes/**"
     - "src/**/events.ts"
-    - "src/**/types.ts"
