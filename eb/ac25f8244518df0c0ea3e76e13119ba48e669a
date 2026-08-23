@@ -1,0 +1,16 @@
+src/shared/microuac.ts
+  h_1b119f25eaf333 1-62
+test/unit/microuac.test.ts
+  h_1b119f25eaf333 1-53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "ebac25f8244518df0c0ea3e76e13119ba48e669a",
+  "prompts": {},
+  "humans": {
+    "h_1b119f25eaf333": {
+      "author": "philipz <philipzheng@gmail.com>"
+    }
+  }
+}
