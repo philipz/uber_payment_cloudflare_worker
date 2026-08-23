@@ -1,7 +1,7 @@
 # CodeQL code scanning（GHAS 功能之一；public repo 完全免費，不需 Advanced Security 授權）。
 # 比照 factory CI 策略：觸發涵蓋 software-factory 與 factory/**（每層獨立掃描，
-# docs/07 §2.2），並加每週排程掃描。空骨架時期（尚無 JS/TS 原始碼）以 hashFiles
-# guard 跳過；程式碼落地後自動生效。
+# docs/07 §2.2），並加每週排程掃描。空骨架時期（尚無 JS/TS 原始碼）以 step 級
+# find 守衛跳過 CodeQL 步驟；程式碼落地後自動生效。
 name: CodeQL
 
 on:
@@ -21,7 +21,6 @@ jobs:
     name: Analyze (${{ matrix.language }})
     runs-on: ubuntu-latest
     timeout-minutes: 360
-    if: ${{ hashFiles('**/*.{js,ts,jsx,tsx}') != '' }}
     permissions:
       security-events: write
       packages: read
@@ -34,12 +33,22 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+      - name: Check JS/TS sources exist
+        id: sources
+        run: |
+          if find . -type f \( -name '*.js' -o -name '*.ts' -o -name '*.jsx' -o -name '*.tsx' \) | grep -q .; then
+            echo "has_sources=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_sources=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Initialize CodeQL
+        if: steps.sources.outputs.has_sources == 'true'
         uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
       - name: Perform CodeQL Analysis
+        if: steps.sources.outputs.has_sources == 'true'
         uses: github/codeql-action/analyze@v4
         with:
           category: '/language:${{matrix.language}}'

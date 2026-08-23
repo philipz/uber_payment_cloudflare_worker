@@ -1,15 +1,8 @@
 version: 2
 updates:
-  # npm 生態：目前 repo 為空骨架（尚無 package.json）——Dependabot 會略過該目錄，
-  # 一旦 package.json/package-lock.json 落地即自動生效
-  - package-ecosystem: npm
-    directory: /
-    schedule:
-      interval: weekly
-      day: friday
-    open-pull-requests-limit: 10
-    labels:
-      - dependencies
+  # 注意：npm 生態暫不加入——Dependabot 在無 package.json 的 repo 會直接報錯
+  #（實測 2026-08-23：/package.json not found → Dependabot Updates 紅燈）。
+  # 待 package.json/package-lock.json 落地後再加回 npm 生態。
   - package-ecosystem: github-actions
     directory: /
     schedule:
