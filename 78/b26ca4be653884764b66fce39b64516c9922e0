@@ -1,0 +1,18 @@
+.github/dependabot.yml
+  h_1b119f25eaf333 1-20
+.github/workflows/codeql.yml
+  h_1b119f25eaf333 1-45
+.github/workflows/security-scan.yml
+  h_1b119f25eaf333 1-39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "78b26ca4be653884764b66fce39b64516c9922e0",
+  "prompts": {},
+  "humans": {
+    "h_1b119f25eaf333": {
+      "author": "philipz <philipzheng@gmail.com>"
+    }
+  }
+}
