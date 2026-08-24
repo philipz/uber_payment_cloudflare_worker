@@ -1,0 +1,80 @@
+# Quint 正式驗證（ADR-008 慣例，比照 software_factory 的 quint-verify.yml）。
+# 僅當 PR 觸及 quint-paths.yml 宣告的路徑時作為 required check 生效。
+# 規格檔為 specs/uber-payment.qnt（由 Quint 工作項產出；尚未存在時本 workflow 乾淨略過）。
+name: Quint Verify
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  quint-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0   # 需要 base 分支以計算變更路徑
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.21.1'
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      # 觸發判定：變更是否觸及 quint-paths.yml 宣告的路徑（base = PR 目標分支）
+      - name: Determine if Quint gate applies
+        id: gate
+        run: |
+          BASE_REF="origin/${{ github.event.pull_request.base.ref }}"
+          changed=$(git diff --name-only "$BASE_REF"...HEAD || git diff --name-only origin/main...HEAD)
+          applies=$(node --input-type=module -e '
+            import { readFileSync } from "node:fs"
+            import { load } from "js-yaml"
+            import { minimatch } from "minimatch"
+            const paths = load(readFileSync(".github/factory/quint-paths.yml", "utf8")).quint_paths
+            const changed = process.argv[1].split("\n").filter(Boolean)
+            const hit = changed.some((p) => paths.some((g) => minimatch(p, g, { dot: true })))
+            process.stdout.write(hit ? "yes" : "no")
+          ' "$changed")
+          echo "applies=$applies" >> "$GITHUB_OUTPUT"
+
+      # 規格檔尚不存在（Quint 工作項產出前）→ 乾淨略過
+      - name: Check spec exists
+        id: spec
+        if: steps.gate.outputs.applies == 'yes'
+        run: |
+          if [ -f specs/uber-payment.qnt ]; then
+            echo "has_spec=yes" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_spec=no" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Typecheck spec
+        if: steps.spec.outputs.has_spec == 'yes'
+        run: npx quint typecheck specs/uber-payment.qnt
+
+      # 正式驗證：Apalache model checker（狀態空間小，秒級完成）
+      - name: Verify invariants
+        if: steps.spec.outputs.has_spec == 'yes'
+        run: |
+          npx quint verify specs/uber-payment.qnt \
+            --invariants balanceEqualsSignedSum auditEqualsProcessed versionMonotonic \
+            windowBoundary accountAffinity opInRange amountPositive microUac48 statusCommitted
+
+      # 神諭 harness：模型 vs TS 實作（operations.ts）一致性
+      - name: Oracle harness
+        if: steps.spec.outputs.has_spec == 'yes'
+        run: npx vitest run test/quint/uber-payment-oracle.test.ts
+
+      - name: Skip note
+        if: steps.gate.outputs.applies != 'yes'
+        run: echo "Quint gate not applicable to this PR"
+
+      - name: Skip note (spec pending)
+        if: steps.gate.outputs.applies == 'yes' && steps.spec.outputs.has_spec != 'yes'
+        run: echo "Quint spec 尚未建立（Quint 工作項產出後生效）"
