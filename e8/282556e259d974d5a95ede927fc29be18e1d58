@@ -1,0 +1,22 @@
+.dsh/skills/factory-workflow/SKILL.md
+  h_1b119f25eaf333 62
+.github/factory/task-template-fix-bug.txt
+  h_1b119f25eaf333 4
+.github/factory/task-template-update-deps.txt
+  h_1b119f25eaf333 4
+.github/factory/task-template-write-docs.txt
+  h_1b119f25eaf333 4
+.github/factory/task-template.txt
+  h_1b119f25eaf333 4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.24",
+  "base_commit_sha": "e8282556e259d974d5a95ede927fc29be18e1d58",
+  "prompts": {},
+  "humans": {
+    "h_1b119f25eaf333": {
+      "author": "philipz <philipzheng@gmail.com>"
+    }
+  }
+}
