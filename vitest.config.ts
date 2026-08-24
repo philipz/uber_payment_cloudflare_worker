@@ -13,5 +13,8 @@ export default defineConfig({
     globals: true,
     // 每個 test file（isolated storage）先套用 D1 migrations
     setupFiles: ["./test/setup.ts"],
+    // Oracle harness 在純 Node 跑（execFileSync 需 node:child_process）——
+    // 用 vitest.oracle.config.ts + npm run test:oracle，排除在 workerd pool 之外
+    exclude: ["**/node_modules/**", "**/dist/**", "**/coverage/**", "test/quint/**"],
   },
 });

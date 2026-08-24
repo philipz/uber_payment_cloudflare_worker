@@ -62,14 +62,20 @@ jobs:
       - name: Verify invariants
         if: steps.spec.outputs.has_spec == 'yes'
         run: |
-          npx quint verify specs/uber-payment.qnt \
+          npx quint verify specs/uber-payment.qnt --main uber_payment --max-steps 6 \
             --invariants balanceEqualsSignedSum auditEqualsProcessed versionMonotonic \
             windowBoundary accountAffinity opInRange amountPositive microUac48 statusCommitted
 
-      # 神諭 harness：模型 vs TS 實作（operations.ts）一致性
+      # run 情境測試（對應 quint test）
+      - name: Run quint tests
+        if: steps.spec.outputs.has_spec == 'yes'
+        run: npx quint test specs/uber-payment.qnt --main uber_payment_test
+
+      # 神諭 harness：模型 vs TS 實作（operations.ts）一致性。
+      # 用獨立 plain-node vitest config（execFileSync 需 node:child_process，workerd 內不可用）
       - name: Oracle harness
         if: steps.spec.outputs.has_spec == 'yes'
-        run: npx vitest run test/quint/uber-payment-oracle.test.ts
+        run: npm run test:oracle
 
       - name: Skip note
         if: steps.gate.outputs.applies != 'yes'

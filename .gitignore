@@ -17,3 +17,6 @@ dev-dist/
 # 系統 / 編輯器
 .DS_Store
 *.log
+
+# Apalache 驗證產物
+_apalache-out/
