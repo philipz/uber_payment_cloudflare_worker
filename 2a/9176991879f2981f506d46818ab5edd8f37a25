@@ -1,0 +1,14 @@
+test/contract/core.test.ts
+  h_1b119f25eaf333 93-106
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.24",
+  "base_commit_sha": "2a9176991879f2981f506d46818ab5edd8f37a25",
+  "prompts": {},
+  "humans": {
+    "h_1b119f25eaf333": {
+      "author": "philipz <philipzheng@gmail.com>"
+    }
+  }
+}
