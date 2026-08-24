@@ -18,6 +18,8 @@ metadata:
     # 技術棧 annotation
     factory.io/stack: typescript-cloudflare
     factory.io/test-framework: vitest
+    # Quint 形式驗證規格根（ADR-008 慣例；由 quint-verify GitHub Action 消費）
+    factory.io/quint-spec: specs
 spec:
   type: service
   lifecycle: production

@@ -1,0 +1,18 @@
+# Quint 正式驗證的觸發路徑（docs/06 §5.2 同構於 risk-paths.yml）。
+#
+# 觸及任一 pattern 的 PR 必須通過 quint-verify required check：
+#   - quint typecheck specs/uber-payment.qnt
+#   - quint verify --invariants（balanceEqualsSignedSum / auditEqualsProcessed /
+#     versionMonotonic / windowBoundary / accountAffinity / opInRange /
+#     amountPositive / microUac48 / statusCommitted）
+#   - vitest 神諭 harness（test/quint/uber-payment-oracle.test.ts）
+#
+# 本檔案位於 .github/ 下，受 CODEOWNERS 保護：agent 不得修改驗證自身的規則。
+
+quint_paths:
+  - "src/shared/operations.ts"
+  - "src/shared/microuac.ts"
+  - "src/platform/**"
+  - "specs/**"
+  - "test/quint/**"
+  - ".github/factory/quint-paths.yml"
