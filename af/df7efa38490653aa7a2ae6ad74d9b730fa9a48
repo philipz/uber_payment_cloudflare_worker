@@ -1,0 +1,86 @@
+.github/workflows/quint-verify.yml
+  h_1b119f25eaf333 65,69-75,78
+_apalache-out/server/2026-08-24T16-36-43_10510387973742415936/MCviolation.out
+  h_1b119f25eaf333 1-51
+_apalache-out/server/2026-08-24T16-36-43_10510387973742415936/MCviolation1.out
+  h_1b119f25eaf333 1-51
+_apalache-out/server/2026-08-24T16-36-43_10510387973742415936/log0.smt
+  h_1b119f25eaf333 1
+_apalache-out/server/2026-08-24T16-36-43_10510387973742415936/run.txt
+  h_1b119f25eaf333 1
+_apalache-out/server/2026-08-24T16-36-43_10510387973742415936/violation.itf.json
+  h_1b119f25eaf333 1-272
+_apalache-out/server/2026-08-24T16-36-43_10510387973742415936/violation.json
+  h_1b119f25eaf333 1-1638
+_apalache-out/server/2026-08-24T16-36-43_10510387973742415936/violation.tla
+  h_1b119f25eaf333 1-77
+_apalache-out/server/2026-08-24T16-36-43_10510387973742415936/violation1.itf.json
+  h_1b119f25eaf333 1-272
+_apalache-out/server/2026-08-24T16-36-43_10510387973742415936/violation1.json
+  h_1b119f25eaf333 1-1638
+_apalache-out/server/2026-08-24T16-36-43_10510387973742415936/violation1.tla
+  h_1b119f25eaf333 1-77
+_apalache-out/server/2026-08-24T16-37-47_8579330957174912046/log0.smt
+  h_1b119f25eaf333 1
+_apalache-out/server/2026-08-24T16-37-47_8579330957174912046/run.txt
+  h_1b119f25eaf333 1
+_apalache-out/server/2026-08-24T16-39-11_14378024830052624507/log0.smt
+  h_1b119f25eaf333 1
+_apalache-out/server/2026-08-24T16-39-11_14378024830052624507/run.txt
+  h_1b119f25eaf333 1
+_apalache-out/server/2026-08-24T16-40-56_3754851589398715044/log0.smt
+  h_1b119f25eaf333 1
+_apalache-out/server/2026-08-24T16-40-56_3754851589398715044/run.txt
+  h_1b119f25eaf333 1
+_apalache-out/server/2026-08-24T16-42-17_4724739525402530213/log0.smt
+  h_1b119f25eaf333 1
+_apalache-out/server/2026-08-24T16-42-17_4724739525402530213/log1.smt
+  h_1b119f25eaf333 1
+_apalache-out/server/2026-08-24T16-42-17_4724739525402530213/log2.smt
+  h_1b119f25eaf333 1
+_apalache-out/server/2026-08-24T16-42-17_4724739525402530213/run.txt
+  h_1b119f25eaf333 1
+_apalache-out/server/2026-08-24T16-55-29_8534417442918219659/log0.smt
+  h_1b119f25eaf333 1
+_apalache-out/server/2026-08-24T16-55-29_8534417442918219659/run.txt
+  h_1b119f25eaf333 1
+_apalache-out/server/2026-08-24T17-03-51_16357146052780241059/log0.smt
+  h_1b119f25eaf333 1
+_apalache-out/server/2026-08-24T17-03-51_16357146052780241059/run.txt
+  h_1b119f25eaf333 1
+_apalache-out/server/2026-08-24T17-08-32_12370730425678192513/log0.smt
+  h_1b119f25eaf333 1
+_apalache-out/server/2026-08-24T17-08-32_12370730425678192513/run.txt
+  h_1b119f25eaf333 1
+_apalache-out/server/2026-08-24T17-15-35_9287083950615263413/log0.smt
+  h_1b119f25eaf333 1
+_apalache-out/server/2026-08-24T17-15-35_9287083950615263413/run.txt
+  h_1b119f25eaf333 1
+_apalache-out/server/2026-08-24T17-30-44_14193130997036541597/log0.smt
+  h_1b119f25eaf333 1
+_apalache-out/server/2026-08-24T17-30-44_14193130997036541597/run.txt
+  h_1b119f25eaf333 1
+package-lock.json
+  h_1b119f25eaf333 14,1826-1828,1832,3261-3263
+package.json
+  h_1b119f25eaf333 10,18
+specs/uber-payment.qnt
+  h_1b119f25eaf333 1-247
+test/quint/uber-payment-oracle.test.ts
+  h_1b119f25eaf333 1-132
+vitest.config.ts
+  h_1b119f25eaf333 16-18
+vitest.oracle.config.ts
+  h_1b119f25eaf333 1-12
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.24",
+  "base_commit_sha": "afdf7efa38490653aa7a2ae6ad74d9b730fa9a48",
+  "prompts": {},
+  "humans": {
+    "h_1b119f25eaf333": {
+      "author": "philipz <philipzheng@gmail.com>"
+    }
+  }
+}
