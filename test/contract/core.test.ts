@@ -90,10 +90,21 @@ describe('金流核心契約（Item 6）', () => {
   it('並發收單到同一帳戶由 DO 串行化（Hot Account），最終餘額正確', async () => {
     const acc = 'acc-conc-1';
     await Promise.all([1, 2, 3, 4, 5].map((i) => postTxn(acc, T(`c${i}`, 10))));
-    await forceFlush(acc);
+    // 最終一致輪詢：並發 POST 可能在 forceFlush 到達 DO 前仍在排隊（輸入閘），
+    // 落進下一窗口由 alarm/後續 flush 提交——輪詢直到全部入帳（比照來源 e2e「等 version==K」）
+    let balance = 0;
+    let processed = 0;
+    for (let i = 0; i < 20; i++) {
+      await forceFlush(acc);
+      const { json } = await getAccount(acc);
+      balance = json.balance as number;
+      processed = json.processedCount as number;
+      if (balance === 50 && processed === 5) break;
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    expect(balance).toBe(50);
+    expect(processed).toBe(5);
     const { json } = await getAccount(acc);
-    expect(json.balance).toBe(50);
-    expect(json.processedCount).toBe(5);
     expect(json.auditCount).toBe(5);
   });
 
