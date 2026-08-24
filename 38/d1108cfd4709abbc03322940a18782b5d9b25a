@@ -1,0 +1,62 @@
+.dsh/skills/quint-lang/SKILL.md
+  h_1b119f25eaf333 1-560
+.dsh/skills/quint-lang/guidelines/choreo.md
+  h_1b119f25eaf333 1-267
+.dsh/skills/quint-lang/guidelines/cli.md
+  h_1b119f25eaf333 1-248
+.dsh/skills/quint-lang/guidelines/constraints.md
+  h_1b119f25eaf333 1-172
+.dsh/skills/quint-lang/guidelines/operators.md
+  h_1b119f25eaf333 1-164
+.dsh/skills/quint-lang/guidelines/patterns.md
+  h_1b119f25eaf333 1-408
+.dsh/skills/quint-lang/guidelines/simulations.md
+  h_1b119f25eaf333 1-308
+.dsh/skills/quint-lang/guidelines/tests.md
+  h_1b119f25eaf333 1-308
+.dsh/skills/quint-modeling/SKILL.md
+  h_1b119f25eaf333 1-462
+.dsh/skills/quint-modeling/examples/README.md
+  h_1b119f25eaf333 1-60
+.dsh/skills/quint-modeling/examples/ewd426.qnt
+  h_1b119f25eaf333 1-110
+.dsh/skills/quint-modeling/examples/tendermint/choreo.qnt
+  h_1b119f25eaf333 1-295
+.dsh/skills/quint-modeling/examples/tendermint/spells/basicSpells.qnt
+  h_1b119f25eaf333 1-388
+.dsh/skills/quint-modeling/examples/tendermint/tendermint.qnt
+  h_1b119f25eaf333 1-800
+.dsh/skills/quint-modeling/examples/tendermint/tendermintTest.qnt
+  h_1b119f25eaf333 1-98
+.dsh/skills/quint-modeling/guidelines/from-code.md
+  h_1b119f25eaf333 1-182
+.dsh/skills/quint-modeling/guidelines/from-nothing.md
+  h_1b119f25eaf333 1-64
+.dsh/skills/quint-modeling/guidelines/from-requirements.md
+  h_1b119f25eaf333 1-85
+.dsh/skills/quint-modeling/guidelines/from-tlaplus.md
+  h_1b119f25eaf333 1-295
+.dsh/skills/quint-modeling/guidelines/review.md
+  h_1b119f25eaf333 1-102
+.github/factory/quint-paths.yml
+  h_1b119f25eaf333 1-18
+.github/workflows/quint-verify.yml
+  h_1b119f25eaf333 1-80
+catalog-info.yaml
+  h_1b119f25eaf333 21-22
+package-lock.json
+  h_1b119f25eaf333 13-15,624-675,1203-1252,1281-1353,1393-1458,1748-1774,1800-1840,1954-2003,2014-2033,2041-2053,2064-2103,2111-2158,2180-2201,2212-2225,2285-2294,2348-2444,2716-2754,2783-2821,2855-2874,2938-2971,3006-3012,3071-3093,3125-3152,3166-3182,3259-3265,3276-3282,3451-3466,3541-3565,3588-3636
+package.json
+  h_1b119f25eaf333 16-18
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.24",
+  "base_commit_sha": "38d1108cfd4709abbc03322940a18782b5d9b25a",
+  "prompts": {},
+  "humans": {
+    "h_1b119f25eaf333": {
+      "author": "philipz <philipzheng@gmail.com>"
+    }
+  }
+}
