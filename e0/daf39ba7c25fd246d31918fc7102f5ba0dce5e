@@ -1,0 +1,14 @@
+test/contract/idempotency-scale.test.ts
+  h_1b119f25eaf333 1-113
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.24",
+  "base_commit_sha": "e0daf39ba7c25fd246d31918fc7102f5ba0dce5e",
+  "prompts": {},
+  "humans": {
+    "h_1b119f25eaf333": {
+      "author": "philipz <philipzheng@gmail.com>"
+    }
+  }
+}
