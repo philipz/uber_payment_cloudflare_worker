@@ -1,0 +1,14 @@
+test/contract/post-process.test.ts
+  h_1b119f25eaf333 9-14,16-17,19-20,53,55-58,60-64,67,74-77,88,92-113,115-116,118-125
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.24",
+  "base_commit_sha": "48893ded831602774785860efb34dd6051e70dc5",
+  "prompts": {},
+  "humans": {
+    "h_1b119f25eaf333": {
+      "author": "philipz <philipzheng@gmail.com>"
+    }
+  }
+}
