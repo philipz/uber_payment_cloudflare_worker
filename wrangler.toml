@@ -18,9 +18,19 @@ migrations_dir = "./migrations"
 name = "ACCOUNT_DO"
 class_name = "AccountDO"
 
+# EventHub DO（Item 8）：領域事件廣播 hub——取代來源 Redis pub/sub（EVENTS_CHANNEL）。
+# SSE 客戶端 GET /events 訂閱；AccountDO commit 成功後 POST /publish 發布 Committed 事件。
+[[durable_objects.bindings]]
+name = "EVENT_HUB"
+class_name = "EventHubDO"
+
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["AccountDO"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["EventHubDO"]
 
 # Queues：finalize 下游通知（at-least-once；consumer 側冪等）。
 # finalize-dlq 為死信佇列名稱（部署前以 `wrangler queues create finalize-dlq` 建立）

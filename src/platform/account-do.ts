@@ -11,7 +11,7 @@
 //   - Exactly-Once = at-least-once 佇列 + processed_transactions 冪等去重（§6.1）。
 import { DurableObject } from 'cloudflare:workers';
 import { dedupeTransactions, replayBatch } from '../shared/operations';
-import type { TransactionInput } from '../shared/types';
+import { TxnState, type DomainEvent, type TransactionInput } from '../shared/types';
 import type { Env } from './env';
 import { microUacFor } from './micro-uac-for';
 
@@ -219,8 +219,33 @@ export class AccountDO extends DurableObject<Env> {
 
       // 下游通知（at-least-once；consumer 僅 log，遺失不影響審計——與來源 post-process 同語意）
       await this.env.FINALIZE_QUEUE.send({ accountId, batchId, count: deduped.length });
+
+      // 領域事件發布（Item 8，H7 人類核可）：commit 成功後發布 Committed 事件到 EventHub DO。
+      // 純觀測 hook——零計算/審計/版本邏輯改動；發布失敗不影響主流程（與來源 emitEvent
+      // non-blocking 語意一致，廣播遺失不影響審計正確性）。
+      const event: DomainEvent = {
+        ts: Date.now(),
+        state: TxnState.Committed,
+        accountId,
+        batchId,
+        size: deduped.length,
+        version: newVersion,
+        balance: newBalance,
+      };
+      await this.publishEvent(event).catch(() => {
+        /* 事件廣播失敗 non-blocking（來源 emitEvent 同語意） */
+      });
       return;
     }
     throw new Error(`OCC conflict exceeded retries for account ${accountId}`);
+  }
+
+  /** 發布領域事件到 EventHub DO（單一 hub 實例；Item 8）。 */
+  private async publishEvent(event: DomainEvent): Promise<void> {
+    const hub = this.env.EVENT_HUB.get(this.env.EVENT_HUB.idFromName('hub'));
+    await hub.fetch('https://hub/publish', {
+      method: 'POST',
+      body: JSON.stringify({ type: 'publish', event } satisfies { type: 'publish'; event: DomainEvent }),
+    });
   }
 }
