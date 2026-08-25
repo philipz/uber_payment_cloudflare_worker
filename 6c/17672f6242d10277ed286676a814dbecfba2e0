@@ -1,0 +1,14 @@
+test/contract/metrics.test.ts
+  h_1b119f25eaf333 13,15-17,25-34,66-68,71
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.24",
+  "base_commit_sha": "6c17672f6242d10277ed286676a814dbecfba2e0",
+  "prompts": {},
+  "humans": {
+    "h_1b119f25eaf333": {
+      "author": "philipz <philipzheng@gmail.com>"
+    }
+  }
+}
