@@ -10,14 +10,27 @@
 // 此測試層（01-test）先以 it.skip 提交（斷言完整保留、該層獨立綠燈）；02-impl 層
 // un-skip 並在 src/index.ts 新增 GET /metrics 端點後轉綠。
 import { describe, expect, it } from 'vitest';
-import { SELF } from 'cloudflare:test';
+import { env, SELF } from 'cloudflare:test';
 import { OperationType, type TransactionInput } from '../../src/shared/types';
+import type { Env } from '../../src/platform/env';
+
+const e = env as unknown as Env;
 
 const T = (transactionId: string, amount: number): TransactionInput => ({
   transactionId,
   operationType: OperationType.Credit,
   amount,
 });
+
+/** forceFlush：確保窗口內交易已提交（輪詢等最終一致時需要——避免最後一筆落入下個窗口未提交的 CI flake）。 */
+async function forceFlush(accountId: string): Promise<void> {
+  const stub = e.ACCOUNT_DO.get(e.ACCOUNT_DO.idFromName(accountId));
+  const res = await stub.fetch('https://do/flush', {
+    method: 'POST',
+    body: JSON.stringify({ type: 'flush', accountId }),
+  });
+  await res.json();
+}
 
 describe('GET /metrics 契約（Item 9，H7 人類核可）', () => {
   it('回 Metrics 對照：{ batched, naive } 各含 requests/dbWrites，初始為 0', async () => {
@@ -50,9 +63,12 @@ describe('GET /metrics 契約（Item 9，H7 人類核可）', () => {
       });
       expect(post.status).toBe(202);
     }
-    // 等待最終一致（比照 core.test.ts 先例：輪詢帳戶直到全部入帳再讀 /metrics）
+    // 等待最終一致（比照 core.test.ts 先例：輪詢帳戶直到全部入帳再讀 /metrics）。
+    // 每次輪詢前 forceFlush——避免最後一筆交易在輸入佇列/未關窗口時 processed 停滯
+    // （CI 慢速環境實測 flake：processed 卡在 2 而非 3）。
     let processed = 0;
     for (let i = 0; i < 50; i++) {
+      await forceFlush(acc);
       const accRes = await SELF.fetch(`https://example.com/accounts/${acc}`);
       const accJson = (await accRes.json()) as { processedCount: number };
       processed = accJson.processedCount ?? 0;
