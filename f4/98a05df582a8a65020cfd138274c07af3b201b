@@ -1,0 +1,16 @@
+README.md
+  h_1b119f25eaf333 22,33,49-53,69-70,75,78-79,231-232,234-235
+docs/architecture-mapping.md
+  h_1b119f25eaf333 22,57-58,68-70
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.24",
+  "base_commit_sha": "f498a05df582a8a65020cfd138274c07af3b201b",
+  "prompts": {},
+  "humans": {
+    "h_1b119f25eaf333": {
+      "author": "philipz <philipzheng@gmail.com>"
+    }
+  }
+}
