@@ -1,0 +1,18 @@
+docs/architecture-mapping.md
+  h_1b119f25eaf333 23,63-64
+docs/factory-work-items-cloudflare-port-phase2.md
+  h_1b119f25eaf333 1-126
+docs/quint-conformance.md
+  h_1b119f25eaf333 1-153
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.24",
+  "base_commit_sha": "3aa665d7110906d8fd540013836d525f6865e023",
+  "prompts": {},
+  "humans": {
+    "h_1b119f25eaf333": {
+      "author": "philipz <philipzheng@gmail.com>"
+    }
+  }
+}
