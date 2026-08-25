@@ -165,10 +165,19 @@ export class AccountDO extends DurableObject<Env> {
         continue;
       }
 
-      // 冪等去重：排除已套用與批次內重複（來源 dedupeTransactions 語意）
+      // 冪等去重：排除已套用與批次內重複（來源 dedupeTransactions 語意）。
+      // Item 12（docs/diagnosis-500-idempotency.md）：原為 WHERE account_id = ? 全量讀
+      // 帳戶所有 processed——單帳戶累積越多每次 commit 查詢越大，最終平台層 500。
+      // 改為只查本批次 txid（回歸來源 batch-process 的 WHERE transaction_id = ANY($1)）：
+      // 每次 commit 讀取量 = 批次大小，與帳戶歷史無關。dedupe 只檢查「本批次交易是否
+      // 已處理」，不在本批次的 txid 本就不會被檢查——語意完全等價。
+      const txIds = txns.map((t) => t.transactionId);
+      const placeholders = txIds.map(() => '?').join(',');
       const processed = await session
-        .prepare('SELECT transaction_id FROM processed_transactions WHERE account_id = ?')
-        .bind(accountId)
+        .prepare(
+          `SELECT transaction_id FROM processed_transactions WHERE account_id = ? AND transaction_id IN (${placeholders})`,
+        )
+        .bind(accountId, ...txIds)
         .all<{ transaction_id: string }>();
       const processedSet = new Set(processed.results.map((r) => r.transaction_id));
       const deduped = dedupeTransactions(txns, processedSet);
