@@ -1,0 +1,14 @@
+docs/diagnosis-500-idempotency.md
+  h_1b119f25eaf333 40-74
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.24",
+  "base_commit_sha": "a7e02776ef8a7c06128792cb3b455a5617a1bf79",
+  "prompts": {},
+  "humans": {
+    "h_1b119f25eaf333": {
+      "author": "philipz <philipzheng@gmail.com>"
+    }
+  }
+}
