@@ -43,3 +43,11 @@ queue = "finalize-queue"
 max_batch_size = 10
 max_retries = 3
 dead_letter_queue = "finalize-dlq"
+
+# Observability（Workers Logs）：啟用 invocation logs——除錯/效能監控可在儀表板與
+# wrangler tail 查詢每個請求的結果與錯誤（2026-08-25 效能驗證時 500 錯誤無法從 tail
+# 取得根因，啟用後可直接診斷）。Paid 方案每月含 2,000 萬 log events（+$0.60/百萬），
+# 本專案流量遠低於免費額度。金融機密：log 僅含 URL/狀態碼，不含 micro_uac 或 balance。
+[observability.logs]
+enabled = true
+invocation_logs = true
