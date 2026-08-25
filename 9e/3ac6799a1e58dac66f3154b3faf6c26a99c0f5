@@ -1,0 +1,20 @@
+src/index.ts
+  h_1b119f25eaf333 14-15,135-139,141-143
+src/platform/account-do.ts
+  h_1b119f25eaf333 17,236
+src/platform/post-process.ts
+  h_1b119f25eaf333 1-31
+src/platform/publish-event.ts
+  h_1b119f25eaf333 1-16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.24",
+  "base_commit_sha": "9e3ac6799a1e58dac66f3154b3faf6c26a99c0f5",
+  "prompts": {},
+  "humans": {
+    "h_1b119f25eaf333": {
+      "author": "philipz <philipzheng@gmail.com>"
+    }
+  }
+}
