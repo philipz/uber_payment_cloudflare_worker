@@ -14,6 +14,7 @@ import { dedupeTransactions, replayBatch } from '../shared/operations';
 import { TxnState, type DomainEvent, type TransactionInput } from '../shared/types';
 import type { Env } from './env';
 import { microUacFor } from './micro-uac-for';
+import { publishEvent } from './publish-event';
 
 export const WINDOW_MS = 250;
 export const MAX_BATCH_TXNS = 100;
@@ -232,20 +233,11 @@ export class AccountDO extends DurableObject<Env> {
         version: newVersion,
         balance: newBalance,
       };
-      await this.publishEvent(event).catch(() => {
+      await publishEvent(this.env, event).catch(() => {
         /* 事件廣播失敗 non-blocking（來源 emitEvent 同語意） */
       });
       return;
     }
     throw new Error(`OCC conflict exceeded retries for account ${accountId}`);
-  }
-
-  /** 發布領域事件到 EventHub DO（單一 hub 實例；Item 8）。 */
-  private async publishEvent(event: DomainEvent): Promise<void> {
-    const hub = this.env.EVENT_HUB.get(this.env.EVENT_HUB.idFromName('hub'));
-    await hub.fetch('https://hub/publish', {
-      method: 'POST',
-      body: JSON.stringify({ type: 'publish', event } satisfies { type: 'publish'; event: DomainEvent }),
-    });
   }
 }
