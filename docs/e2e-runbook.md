@@ -219,25 +219,21 @@ print('✅ /metrics 語意正確')"
 ### P5 load-generator runner（Item 9，本機壓測）
 
 ```bash
-# runner 為純邏輯模組（無 CLI 入口）——用 unit 測試驗證其語意（naive 基準 / batched 壓縮比）：
-npm run test:unit -- --run test/unit/load-generator.test.ts
-# 預期：全部通過——naiveBaseline（dbWrites=requests）、computeRatio、buildComparison 對照
+# 對部署環境灌真實負載並輸出 batched vs naive 對照（Node 22.6+ 直接跑 TS，無需 tsx/編譯）：
+node --experimental-strip-types scripts/load-generator-cli.ts \
+  --base-url "$B" --account e2e-final-1 --count 20 --concurrency 5
+# 預期輸出（JSON）：comparison.batched.ratio ≥ 1（250ms 窗口壓縮）、
+#                 comparison.naive.ratio = 1（數學基準）
+# 實測參考（2026-08-25，20 筆 concurrency=5）：batched ratio 5.6x（62 req / 11 dbWrites）
 
-# 若要對部署環境灌真實負載，以 node 直接呼叫 runBenchmark：
-node -e "
-const { runBenchmark } = require('./scripts/load-generator.js');
-runBenchmark({ baseUrl: '$B', accountId: 'e2e-final-1',
-  transactions: Array.from({length: 20}, (_, i) => ({ transactionId: 'lg'+i, amount: 1 })) })
-  .then(r => console.log(JSON.stringify(r.comparison, null, 2)))
-  .catch(e => { console.error(e.message); process.exit(1); });
-"
-# 預期：batched.ratio ≥ 1（窗口壓縮），naive.ratio = 1（基準）
+# 純邏輯驗證（naive 基準 / batched 壓縮比）：
+npm run test:unit -- --run test/unit/load-generator.test.ts test/unit/load-generator-cli.test.ts
 ```
 
-> ⚠️ **P5 注意**：`scripts/load-generator.ts` 是純邏輯模組（`naiveBaseline`/`computeRatio`/
-> `buildComparison`/`readMetrics`/`runBenchmark`），無 CLI 入口。直接以 `node -e` 呼叫
-> `runBenchmark` 需 TS 可執行環境（如 `npx tsx` 或編譯後）；最簡做法是上述 unit 測試
-> + P4 的 `/metrics` 對帳即覆蓋 Item 9 驗收。
+> ⚠️ **P5 注意**：`scripts/load-generator-cli.ts` 為 CLI 入口（`--base-url` 必填、
+> `--account` 必填、`--count` 預設 20、`--concurrency` 預設 1、`--duration-ms` 選填、
+> `--amount` 預設 1）；核心邏輯在 `scripts/load-generator.ts`（純函式可測）。
+> 灌壓帳戶建議用 `e2e-final-*` 前綴（Phase 4 清理涵蓋）。
 
 ---
 
