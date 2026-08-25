@@ -1,0 +1,14 @@
+wrangler.toml
+  h_1b119f25eaf333 46-53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.24",
+  "base_commit_sha": "9d211b72166bae901a1f3052c2f4ca05ecc55586",
+  "prompts": {},
+  "humans": {
+    "h_1b119f25eaf333": {
+      "author": "philipz <philipzheng@gmail.com>"
+    }
+  }
+}
