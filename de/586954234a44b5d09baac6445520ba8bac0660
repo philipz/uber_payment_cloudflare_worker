@@ -1,0 +1,14 @@
+src/platform/account-do.ts
+  h_1b119f25eaf333 168-175,177-180
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.24",
+  "base_commit_sha": "de586954234a44b5d09baac6445520ba8bac0660",
+  "prompts": {},
+  "humans": {
+    "h_1b119f25eaf333": {
+      "author": "philipz <philipzheng@gmail.com>"
+    }
+  }
+}
