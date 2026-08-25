@@ -1,0 +1,18 @@
+scripts/load-generator-cli.ts
+  h_1b119f25eaf333 1-84
+scripts/load-generator.ts
+  h_1b119f25eaf333 80-82,86-89,91-96,98-101,109-122
+test/unit/load-generator-cli.test.ts
+  h_1b119f25eaf333 1-80
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.24",
+  "base_commit_sha": "db809eb468493e0ad92625c2080c8221a3b39d75",
+  "prompts": {},
+  "humans": {
+    "h_1b119f25eaf333": {
+      "author": "philipz <philipzheng@gmail.com>"
+    }
+  }
+}
