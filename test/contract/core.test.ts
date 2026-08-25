@@ -106,7 +106,9 @@ describe('金流核心契約（Item 6）', () => {
     // 落進下一窗口由 alarm/後續 flush 提交——輪詢直到全部入帳（比照來源 e2e「等 version==K」）
     let balance = 0;
     let processed = 0;
-    for (let i = 0; i < 20; i++) {
+    // 最終一致輪詢預算（20）：並發 POST 於 CI 高度並行下可能落在輸入閘排隊，
+    // 需多次 forceFlush 窗口才全數提交；斷言不變、僅放大輪詢預算至 50。
+    for (let i = 0; i < 50; i++) {
       await forceFlush(acc);
       const { json } = await getAccount(acc);
       balance = json.balance as number;

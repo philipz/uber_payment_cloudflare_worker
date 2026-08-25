@@ -19,6 +19,7 @@ Queues）的落地方案。對應 Factory Item 6（金流核心）。逐項對�
 | `MAX_OCC_RETRIES=20` | DO `commitBatch` 迴圈重試 + jitter（`MAX_OCC_RETRIES = 20`） | 單一寫入者使衝突結構性不可能；guard 為防禦性，衝突時 random jitter 後重試。 |
 | `migration` 種子帳戶 | `migrations/0001_init.sql`（`hot-account-1`） | 來源「種子後任意帳戶可收單」語意：commitBatch 對不存在帳戶 `INSERT OR IGNORE` 自動建立。 |
 | finalize 下游佇列 `finalize:queue`（`FINALIZE_QUEUE`）| **Queues** `finalize-queue`（producer `FINALIZE_QUEUE` + consumer） | at-least-once；`FINALIZE_QUEUE.send({accountId,batchId,count})`，consumer 目前為 stub（僅 log），遺失不影響審計。死信 `finalize-dlq`。 |
+| 壓測對照（batched 壓縮比） | **`GET /metrics`**（Item 9，H7 核可）+ **`scripts/load-generator.ts`** runner | Worker 無 naive 模式，naive 以數學基準定義（`naive.dbWrites = naive.requests`，ratio = 1，issue #35 人類裁決）；`/metrics` 對 D1 對帳讀取（`COUNT(processed_transactions)` / `COUNT(DISTINCT applied_version)`）；runner 純邏輯輸出 batched vs naive 對照，展示「250ms 窗口壓縮 DB 寫入」。 |
 | Redis pub/sub 事件廣播（`EVENTS_CHANNEL`） | **EventHub DO**（Item 8 已落地） | `src/platform/event-hub-do.ts` 取代 Redis pub/sub 廣播角色：SSE 客戶端 `GET /events` 訂閱 hub，AccountDO commit 成功後 `POST /publish` 發布 `Committed` 事件，hub fan-out `data: <JSON>\n\n`；`/dashboard` 回來源移植的單頁儀表板。`formatSseData` 純函式於 `src/shared/events.ts`（與來源 payload 一致）。 |
 | 可靠佇列 worker 心跳/重認領（`WORKERS_SET`、BLMOVE） | **不移植（已取代）** | 來源的 BLMOVE + 心跳重認領語意被 DO 單一寫入者取代，不需工作集心跳；`keys.ts` 的 worker 小工具僅保留追溯，無對應落地。 |
 
@@ -56,6 +57,7 @@ MD5 以純 JS 實作（`src/platform/md5.ts`，RFC 1321），因 Workers 無 nod
 | `/accounts/:id` | GET | 從 D1 讀餘額/版本/審計/已處理筆數（驗證用） |
 | `/events` | GET | SSE 訂閱（Item 8）：路由到 EventHub DO，領域事件即時流 |
 | `/dashboard` | GET | 單頁儀表板（Item 8）：EventSource 訂閱 `/events`，即時顯示狀態機流轉 |
+| `/metrics` | GET | D1 對帳讀取（Item 9，H7 核可）：回 `{batched, naive}` 計數，壓測對照用 |
 | queue consumer `finalize-queue` | — | 接收 `FinalizeJob{accountId,batchId,count}`，僅 log（post-process stub） |
 
 ## 未實作（規劃中）
@@ -65,9 +67,12 @@ MD5 以純 JS 實作（`src/platform/md5.ts`，RFC 1321），因 Workers 無 nod
 - **狀態機完整狀態流（Tentative → Finalized）與 post-process 全功能**：
   `audit.status` 目前僅寫 `Committed`（Tentative 為 stub，與來源一致），`finalize`
   consumer 僅 log。
-- **儀表板 `/metrics` 對照區塊**（來源儀表板輪詢 `/metrics`）：依 Item 9
-  （load-generator）落地後自動生效；目前該區塊 try/catch 靜默。領域事件廣播
-  （`EVENTS_CHANNEL`）本身已由 Item 8（EventHub DO + SSE）落地。
+- **儀表板 `/metrics` 對照區塊**：已於 **Item 9**（load-generator）落地——`GET /metrics`
+  （H7 人類核可）對 D1 對帳讀取（不觸 H2/H4）回傳 `{batched, naive}` 計數；
+  `scripts/load-generator.ts`（runner 純邏輯）輸出 batched vs naive 壓縮比對照，
+  naive 以數學基準定義（`naive.dbWrites = naive.requests`，issue #35 人類裁決）。
+  儀表板輪詢 `/metrics` 的對照區塊隨之自動生效。領域事件廣播（`EVENTS_CHANNEL`）
+  本身已於 Item 8（EventHub DO + SSE）落地。
 
 ## 對照依據
 

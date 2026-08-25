@@ -1,9 +1,10 @@
-// uber_payment_cloudflare_worker — Worker 入口（Item 6 金流核心 + Item 8 SSE 儀表板）。
+// uber_payment_cloudflare_worker — Worker 入口（Item 6 金流核心 + Item 8 SSE 儀表板 + Item 9 壓測對照）。
 // 路由：
 //   POST /accounts/:id/transactions   收單（202 Accepted；窗口歸集非同步提交）
 //   GET  /accounts/:id                查詢餘額/版本/審計筆數（驗證用）
 //   GET  /events                       SSE 訂閱（領域事件即時流；Item 8）
 //   GET  /dashboard                    單頁儀表板（EventSource 訂閱 /events；Item 8）
+//   GET  /metrics                      D1 對帳計數（Item 9；batched vs naive 壓縮比對照）
 //   GET  /health                      健康檢查
 //   GET  /                            骨架 smoke 用（回 OK）
 // queue consumer：finalize 下游通知（post-process stub，僅 log——審計已由主交易原子落庫）
@@ -57,6 +58,23 @@ export default {
     if (request.method === 'GET' && url.pathname === '/dashboard') {
       return new Response(DASHBOARD_HTML, {
         headers: { 'content-type': 'text/html; charset=utf-8' },
+      });
+    }
+
+    // GET /metrics — 壓測對照（Item 9，H7 人類核可）：D1 對帳讀取，不觸 H2 金流計算、不觸 H4 db 層。
+    //   batched.requests = COUNT(processed_transactions)
+    //   batched.dbWrites = COUNT(DISTINCT applied_version)（每批次 version+1 = 一次 D1 寫入）
+    //   naive.*          = 數學基準（naive.dbWrites = naive.requests → ratio = 1）
+    // 回應格式與來源 runner.ts 的 Metrics 介面一致：{ batched, naive }（見 scripts/load-generator.ts）。
+    if (request.method === 'GET' && url.pathname === '/metrics') {
+      const row = await env.DB.prepare(
+        'SELECT COUNT(*) AS requests, COUNT(DISTINCT applied_version) AS dbWrites FROM processed_transactions',
+      ).first<{ requests: number; dbWrites: number }>();
+      const requests = row?.requests ?? 0;
+      const dbWrites = row?.dbWrites ?? 0;
+      return Response.json({
+        batched: { requests, dbWrites },
+        naive: { requests, dbWrites: requests },
       });
     }
 
