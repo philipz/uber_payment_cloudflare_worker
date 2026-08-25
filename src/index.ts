@@ -1,9 +1,10 @@
-// uber_payment_cloudflare_worker — Worker 入口（Item 6 金流核心 + Item 8 SSE 儀表板）。
+// uber_payment_cloudflare_worker — Worker 入口（Item 6 金流核心 + Item 8 SSE 儀表板 + Item 9 壓測對照）。
 // 路由：
 //   POST /accounts/:id/transactions   收單（202 Accepted；窗口歸集非同步提交）
 //   GET  /accounts/:id                查詢餘額/版本/審計筆數（驗證用）
 //   GET  /events                       SSE 訂閱（領域事件即時流；Item 8）
 //   GET  /dashboard                    單頁儀表板（EventSource 訂閱 /events；Item 8）
+//   GET  /metrics                      D1 對帳計數（Item 9；batched vs naive 壓縮比對照）
 //   GET  /health                      健康檢查
 //   GET  /                            骨架 smoke 用（回 OK）
 // queue consumer：finalize 下游通知（post-process stub，僅 log——審計已由主交易原子落庫）

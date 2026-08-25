@@ -54,11 +54,14 @@
   naive 模式直接讀-改-寫）——需人類先裁決：以 D1 直接單筆寫為基準，或以來源紀錄為基準
 
 **驗收標準（DoD）**：
-- [ ] 有可驗證的測試/驗證方式：runner 對照輸出格式與來源一致；`ratio ≥ 1` 合理斷言測試；
+- [x] 有可驗證的測試/驗證方式：runner 對照輸出格式與來源一致；`ratio ≥ 1` 合理斷言測試；
   `npm run test:unit` + CI 綠
-- [ ] 不觸碰高風險路徑：runner 純邏輯不屬風險路徑；若新增 `/metrics` 對外端點則涉 H7，
-  需人類核可
-- [ ] 跑測試確認綠燈：`npm run test:unit` + CI 綠
+- [x] 不觸碰高風險路徑：runner 純邏輯不屬風險路徑；`/metrics` 對外端點 H7 已由人類核可
+  （issue #35 留言）
+- [x] 跑測試確認綠燈：`npm run test:unit` + CI 綠
+
+**狀態**：✅ 完成（issue #35，2026-08-25）——`GET /metrics` + `scripts/load-generator.ts`
+已落地，經 stacked PR（01-test → 02-impl → 03-docs）合併。
 
 **目標 repo**：`philipz/uber_payment_cloudflare_worker`
 

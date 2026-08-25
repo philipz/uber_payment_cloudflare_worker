@@ -4,7 +4,7 @@
 
 - **技術棧**：TypeScript（strict）／ Cloudflare Workers ／ Durable Objects ／ D1（SQLite）／ Queues
 - **部署位址**：<https://uber-payment-cloudflare-worker.philipz.workers.dev>
-- **狀態**：Factory Items 1–7 全部完成（見 [軟體工廠](#軟體工廠software-factory)），核心 happy path 已部署並通過端到端驗證
+- **狀態**：Factory Items 1–9 全部完成（見 [軟體工廠](#軟體工廠software-factory)），核心 happy path 已部署並通過端到端驗證；`GET /metrics` 壓測對照（Item 9）已落地
 
 ---
 
@@ -31,6 +31,7 @@
 │  Client                                                      │
 │  POST /accounts/:id/transactions  GET /accounts/:id  /health │
 │  GET /events（SSE 訂閱）  GET /dashboard（儀表板）            │
+│  GET /metrics（壓測對照，D1 對帳計數）                        │
 └───────────────┬─────────────────────────────────────────────┘
                 │ 路由（src/index.ts，薄 handler）
 ┌───────────────▼─────────────────────────────────────────────┐
@@ -71,12 +72,15 @@ src/
     ├── env.ts                # Env bindings 型別
     ├── md5.ts                # 純 JS MD5（RFC 1321）
     └── micro-uac-for.ts      # microUacFor：transactionId MD5 前 8 bytes→Int64、referenceId MD5→16B
+scripts/
+└── load-generator.ts         # Item 9 壓測對照 runner 純邏輯（naive 基準 / batched 壓縮比）
 migrations/
 ├── 0001_init.sql             # D1 schema（accounts / processed_transactions / audit + 種子）
 test/
-├── unit/                     # 純邏輯測試（operations / microuac / md5 / config / keys / events）
+├── unit/                     # 純邏輯測試（operations / microuac / md5 / config / keys / events / load-generator）
 ├── contract/core.test.ts     # 金流契約整合測試（@cloudflare/vitest-plugin，workerd 內跑）
-└── contract/sse.test.ts      # SSE 儀表板契約（Item 8：/events 訂閱收到 Committed、/dashboard HTML）
+├── contract/sse.test.ts      # SSE 儀表板契約（Item 8：/events 訂閱收到 Committed、/dashboard HTML）
+└── contract/metrics.test.ts  # /metrics 對帳契約（Item 9：{ batched, naive } 計數，ratio 語意）
 wrangler.toml                 # bindings：D1（DB）/ DO（ACCOUNT_DO）/ Queues（FINALIZE_QUEUE）
 ```
 
@@ -135,6 +139,16 @@ INSERT INTO audit (… micro_uac …) SELECT … WHERE changes()=1;
 
 純 JS MD5（RFC 1321）位元組與 `node:crypto` 一致（unit 測試以標準向量驗證），保留未來 Shadow System 交叉比對可能。
 
+### 3.5 load-generator 壓測對照（Item 9）
+
+`GET /metrics` 對 D1 對帳讀取（不觸 H2/H4），回 `{ batched, naive }` 計數：
+
+- `batched.requests` = `COUNT(processed_transactions)`，`batched.dbWrites` = `COUNT(DISTINCT applied_version)`（每批次 version+1 = 一次 D1 寫入）
+- `naive.requests` = 同 batched 負載，`naive.dbWrites` = `naive.requests`（**數學基準**，ratio = 1，issue #35 人類裁決；Worker 無 naive 模式）
+
+`scripts/load-generator.ts` 為 runner 純邏輯（`computeRatio` / `naiveBaseline` / `buildComparison`），
+輸出 batched vs naive 對照，展示「250ms 窗口壓縮 DB 寫入」的壓縮比（batched `ratio ≥ 1`）。
+
 ---
 
 ## 4. API
@@ -145,6 +159,9 @@ INSERT INTO audit (… micro_uac …) SELECT … WHERE changes()=1;
 | `GET` | `/health` | 健康檢查 |
 | `POST` | `/accounts/:id/transactions` | 收單（`202 Accepted`；窗口歸集非同步提交）。Body：`{transactionId, operationType(1-4), amount(正整數), referenceId?, businessTime?}` |
 | `GET` | `/accounts/:id` | 查詢餘額/版本/審計筆數（驗證用） |
+| `GET` | `/events` | SSE 訂閱（Item 8）：領域事件即時流 |
+| `GET` | `/dashboard` | 單頁儀表板（Item 8）：EventSource 訂閱 `/events` |
+| `GET` | `/metrics` | D1 對帳計數（Item 9）：`{ batched, naive }`，`batched = {requests, dbWrites}`, `naive.dbWrites = naive.requests`（數學基準） |
 
 ---
 
@@ -228,7 +245,9 @@ npx wrangler deploy
 - **單帳戶 DO 軟上限 ~1,000 req/s**；超限排隊，隊滿回 `overloaded`。
 - **alarm 延遲**：冷批次（無新請求）的窗口關閉可能延遲至 alarm 到點（最壞 1 分鐘）；有持續請求時按 deadline 準時。
 - **D1 寫入計費較貴**（$1.00/M rows written）— 窗口歸集合併寫入正是省錢關鍵。
-- **第 1 期範圍**（Q7a）：不含 load-generator 壓測對照、多 AZ worker；post-process 為 log stub。
+- **壓測對照已於 Item 9 落地**：`GET /metrics`（D1 對帳計數）+ `scripts/load-generator.ts`
+  （batched vs naive 壓縮比 runner）；naive 以數學基準定義（`ratio = 1`），不新增金流邏輯。
+- **第 1 期範圍**（Q7a）：不含多 AZ worker；post-process 為 log stub。
   dashboard/SSE 已於 **Item 8** 落地（`/events` SSE + `/dashboard`，見 §2 架構總覽）。
 - **審計 `Tentative` 狀態**為 stub（與來源一致）。
 - **SSE 為純觀測**：事件廣播失敗不影響主流程（non-blocking，與來源 emitEvent 語意一致）；
