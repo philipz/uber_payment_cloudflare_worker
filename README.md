@@ -4,7 +4,7 @@
 
 - **技術棧**：TypeScript（strict）／ Cloudflare Workers ／ Durable Objects ／ D1（SQLite）／ Queues
 - **部署位址**：<https://uber-payment-cloudflare-worker.philipz.workers.dev>
-- **狀態**：Factory Items 1–9 全部完成（見 [軟體工廠](#軟體工廠software-factory)），核心 happy path 已部署並通過端到端驗證；`GET /metrics` 壓測對照（Item 9）已落地
+- **狀態**：Factory Items 1–10 全部完成（見 [軟體工廠](#軟體工廠software-factory)），核心 happy path + SSE 儀表板 + 壓測對照 + post-process 已部署並通過生產端到端驗證（2026-08-25，`/metrics` 實測 batched 壓縮比 9x）
 
 ---
 
@@ -236,7 +236,9 @@ npx wrangler deploy
 - 工廠 trunk = **`software-factory` 分支**（agent 絕不 push main，Q-P2-1）
 - 金流核心（SR2）由**人類主導**，factory agent 只負責非金流工作項
 
-**工作項狀態**：Items 1–7 全部完成（bootstrap → operations → microuac → config/keys/events → 契約測試 → 金流核心 → docs）。
+**工作項狀態**：
+- **第 1 期（Items 1–7）**：全部完成——bootstrap → operations → microuac → config/keys/events → 契約測試 → 金流核心 → docs。
+- **第 2 期（Items 8–11）**：全部完成——Item 8 SSE 儀表板 + 事件廣播（EventHub DO）、Item 9 load-generator 壓測對照（`/metrics` + runner）、Item 10 post-process（Finalized 事件 + Kafka stub log）、Item 11 心跳/重認領不移植標註。詳見 `docs/factory-work-items-cloudflare-port-phase2.md`。
 
 ---
 

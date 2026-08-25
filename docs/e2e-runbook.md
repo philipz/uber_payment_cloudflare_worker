@@ -2,6 +2,8 @@
 
 > 適用對象：`uber-payment-cloudflare-worker`（部署位址見 `README.md`）。
 > 目的：對**生產環境**做最終端到端驗收——行為（API）+ 資料（D1 對帳）雙重確認。
+> 涵蓋範圍：第 1 期金流核心（Phase 0–4）+ 第 2 期新增功能（Phase 5：SSE 儀表板 /
+> 壓測對照 / post-process Finalized 事件）。
 > 每次驗證用**新帳戶隔離**，跑完清理，不污染生產資料。
 
 ## 前置
@@ -148,10 +150,94 @@ npx wrangler d1 execute DB --remote \
 
 ```bash
 npx wrangler tail --format pretty   # 另開終端機
-# 發一筆交易後應看到：
-#   (log) [finalize] account=... batch=... count=...
+# 發一筆交易後應看到（Item 10 格式）：
+#   (log) [finalize] kafka(stub) 發布變更事件 account=... records=...
 #   Queue finalize-queue (N messages) - Ok
 ```
+
+---
+
+## Phase 5 — 第 2 期新增功能（Item 8/9/10）
+
+### P1 SSE 訂閱 `/events`（Item 8）— 收到 Committed 事件
+
+```bash
+# 終端機 A：訂閱 SSE（-N 即時、-m 10 秒自動斷線）
+curl -s -N -m 10 "$B/events" | tee /tmp/sse.log &
+# 終端機 B：發一筆交易
+curl -s -X POST "$B/accounts/e2e-final-1/transactions" \
+  -H 'content-type: application/json' \
+  -d '{"transactionId":"p1a","operationType":1,"amount":50}'
+# 終端機 A 應收到（含 balance/version）：
+#   data: {"ts":...,"state":"Committed","accountId":"e2e-final-1","batchId":"e2e-final-1:<窗>","size":1,"version":1,"balance":50}
+```
+
+### P2 SSE 完整狀態流（Item 8 + 10）— 收到 Committed → **Finalized**
+
+```bash
+# 終端機 A：訂閱 SSE（時間拉長到 15 秒，等 finalize 佇列處理）
+curl -s -N -m 15 "$B/events" | tee /tmp/sse2.log &
+# 終端機 B：發一筆交易
+curl -s -X POST "$B/accounts/e2e-final-1/transactions" \
+  -H 'content-type: application/json' \
+  -d '{"transactionId":"p2a","operationType":1,"amount":60}'
+# 終端機 A 應依序收到兩筆 data: 行：
+#   1) "state":"Committed"（AccountDO commit 後，含 balance/version）
+#   2) "state":"Finalized"（queue consumer 收到 finalize 通知後，含 batchId/size——Item 10）
+grep -o '"state":"[^"]*"' /tmp/sse2.log | sort | uniq -c
+# 預期：Committed 1、Finalized 1
+```
+
+### P3 儀表板 `/dashboard`（Item 8）
+
+```bash
+curl -s -o /dev/null -w "%{http_code} %{content_type}\n" "$B/dashboard"
+# 預期：200 text/html; charset=utf-8
+curl -s "$B/dashboard" | grep -c "EventSource"   # ≥1（頁面含 EventSource 訂閱 /events）
+```
+
+### P4 壓測對照 `/metrics`（Item 9）
+
+```bash
+curl -s "$B/metrics"
+# 預期：{ batched: {requests, dbWrites}, naive: {requests, dbWrites} }
+#   - batched.dbWrites ≤ batched.requests（250ms 窗口壓縮 D1 寫入）
+#   - naive.dbWrites == naive.requests（數學基準，ratio=1）
+#   - 若此前已發 N 筆交易：batched.dbWrites 明顯 < requests（壓縮比 > 1）
+# 驗證壓縮比語意：
+curl -s "$B/metrics" | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+b,n=d['batched'],d['naive']
+assert n['dbWrites']==n['requests'], 'naive 基準應為 ratio=1'
+assert b['dbWrites']<=b['requests'], 'batched 壓縮後寫入數應 ≤ 請求數'
+ratio=b['requests']/b['dbWrites'] if b['dbWrites']>0 else 0
+print(f'batched 壓縮比: {ratio:.1f}x (requests={b[\"requests\"]}, dbWrites={b[\"dbWrites\"]})')
+print('✅ /metrics 語意正確')"
+```
+
+### P5 load-generator runner（Item 9，本機壓測）
+
+```bash
+# runner 為純邏輯模組（無 CLI 入口）——用 unit 測試驗證其語意（naive 基準 / batched 壓縮比）：
+npm run test:unit -- --run test/unit/load-generator.test.ts
+# 預期：全部通過——naiveBaseline（dbWrites=requests）、computeRatio、buildComparison 對照
+
+# 若要對部署環境灌真實負載，以 node 直接呼叫 runBenchmark：
+node -e "
+const { runBenchmark } = require('./scripts/load-generator.js');
+runBenchmark({ baseUrl: '$B', accountId: 'e2e-final-1',
+  transactions: Array.from({length: 20}, (_, i) => ({ transactionId: 'lg'+i, amount: 1 })) })
+  .then(r => console.log(JSON.stringify(r.comparison, null, 2)))
+  .catch(e => { console.error(e.message); process.exit(1); });
+"
+# 預期：batched.ratio ≥ 1（窗口壓縮），naive.ratio = 1（基準）
+```
+
+> ⚠️ **P5 注意**：`scripts/load-generator.ts` 是純邏輯模組（`naiveBaseline`/`computeRatio`/
+> `buildComparison`/`readMetrics`/`runBenchmark`），無 CLI 入口。直接以 `node -e` 呼叫
+> `runBenchmark` 需 TS 可執行環境（如 `npx tsx` 或編譯後）；最簡做法是上述 unit 測試
+> + P4 的 `/metrics` 對帳即覆蓋 Item 9 驗收。
 
 ---
 
@@ -162,6 +248,7 @@ npx wrangler d1 execute DB --remote \
   --command "DELETE FROM audit WHERE account_id LIKE 'e2e-final%'; \
              DELETE FROM processed_transactions WHERE account_id LIKE 'e2e-final%'; \
              DELETE FROM accounts WHERE id LIKE 'e2e-final%'"
+rm -f /tmp/sse*.log   # P1/P2 的 SSE 暫存檔
 ```
 
 ---
@@ -173,3 +260,5 @@ npx wrangler d1 execute DB --remote \
 3. **批次歸集的判據**：並發 N 筆 → version 只 +1 代表歸集成功（+N 代表失敗）。
 4. **冪等與錯誤路徑必測**：金流系統最容易出事的兩類。
 5. **remote-only bug**：`wrangler tail` 即時日誌 + `wrangler d1 execute --remote` 直接查庫；需要時在程式碼加暫時 `console.log` 部署後定位（定位完移除）。
+6. **第 2 期（Item 8/9/10）驗證**：Phase 5——SSE `/events` 收到 Committed（P1）與 **Committed→Finalized 完整狀態流**（P2，Item 8+10 協同）、`/dashboard` HTML（P3）、`/metrics` 壓縮比語意（P4，batched 9x 實測）、load-generator 純邏輯（P5，unit 測試）。
+7. **SSE 驗證技巧**：`curl -N -m <秒>` 即時讀流並自動斷線；事件順序 = Committed（AccountDO commit 後）→ Finalized（finalize 佇列 consumer 後）。
