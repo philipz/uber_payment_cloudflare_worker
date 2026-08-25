@@ -58,15 +58,15 @@ MD5 以純 JS 實作（`src/platform/md5.ts`，RFC 1321），因 Workers 無 nod
 | `/events` | GET | SSE 訂閱（Item 8）：路由到 EventHub DO，領域事件即時流 |
 | `/dashboard` | GET | 單頁儀表板（Item 8）：EventSource 訂閱 `/events`，即時顯示狀態機流轉 |
 | `/metrics` | GET | D1 對帳讀取（Item 9，H7 核可）：回 `{batched, naive}` 計數，壓測對照用 |
-| queue consumer `finalize-queue` | — | 接收 `FinalizeJob{accountId,batchId,count}`，僅 log（post-process stub） |
+| queue consumer `finalize-queue` | — | post-process 全功能（Item 10）：Kafka stub log + Finalized 事件發布到 EventHub → SSE |
 
 ## 未實作（規劃中）
 
 - **可靠佇列心跳 / 重認領**（`keys.ts` 的 `WORKERS_SET` / BLMOVE 語意）：**不移植（已取代）**
   ——被 DO 單一寫入者取代，非「待移植」項目；`keys.ts` 小工具僅保留來源追溯。
-- **狀態機完整狀態流（Tentative → Finalized）與 post-process 全功能**：
-  `audit.status` 目前僅寫 `Committed`（Tentative 為 stub，與來源一致），`finalize`
-  consumer 僅 log。
+- **審計 `Tentative` 狀態**：**不補實（人類裁決，issue #36）**——與來源一致（來源
+  batch-process L242「審計已於主交易內原子落庫，無懸空狀態」），`audit.status` 僅寫
+  `Committed`；補實 Tentative 會偏離來源語意並觸動 `statusCommitted` 不變量。
 - **儀表板 `/metrics` 對照區塊**：已於 **Item 9**（load-generator）落地——`GET /metrics`
   （H7 人類核可）對 D1 對帳讀取（不觸 H2/H4）回傳 `{batched, naive}` 計數；
   `scripts/load-generator.ts`（runner 純邏輯）輸出 batched vs naive 壓縮比對照，
