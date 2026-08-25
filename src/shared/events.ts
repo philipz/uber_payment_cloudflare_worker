@@ -28,3 +28,10 @@ export function formatEventLog(event: DomainEvent): string {
 export function emitEventLog(event: DomainEvent, logger: (line: string) => void = console.log): void {
   logger(formatEventLog(event));
 }
+
+// SSE 資料行（Item 8，H7 人類核可）：`data: <JSON>\n\n`——與來源 emitEvent 發布到
+// EVENTS_CHANNEL 的 payload（JSON.stringify(event)）一致；EventHub DO 以此 fan-out。
+// 純函式，可獨立測試。
+export function formatSseData(event: DomainEvent): string {
+  return `data: ${JSON.stringify(event)}\n\n`;
+}
