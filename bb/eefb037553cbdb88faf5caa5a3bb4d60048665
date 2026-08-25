@@ -1,0 +1,14 @@
+docs/performance-report.md
+  h_1b119f25eaf333 1-171
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.24",
+  "base_commit_sha": "bbeefb037553cbdb88faf5caa5a3bb4d60048665",
+  "prompts": {},
+  "humans": {
+    "h_1b119f25eaf333": {
+      "author": "philipz <philipzheng@gmail.com>"
+    }
+  }
+}
