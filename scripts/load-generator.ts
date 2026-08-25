@@ -77,14 +77,28 @@ export async function readMetrics(
 
 // 對熱點帳戶灌一輪負載（與來源 runner 對外行為一致），並輸出 batched vs naive 對照。
 // 純邏輯計算在 buildComparison；此函式只做「送單 → 讀 /metrics → 比較」編排。
-export async function runBenchmark(opts: {
+// `concurrency`：同時在途的請求數（預設 1 = 順序）；來源 runner 的 concurrency 語意。
+// `durationMs`：灌壓持續時間（預設不限）；超過即停止送單（來源 runner 語意）。
+export interface BenchmarkOptions {
   baseUrl: string;
   accountId: string;
   transactions: Array<{ transactionId: string; amount: number }>;
+  /** 同時在途請求數（預設 1 = 順序送單）。 */
+  concurrency?: number;
+  /** 灌壓持續時間上限（ms）；預設不限。 */
+  durationMs?: number;
   fetchImpl?: FetchLike;
-}): Promise<{ comparison: ReturnType<typeof buildComparison>; metrics: MetricsSnapshot }> {
+}
+
+export async function runBenchmark(opts: BenchmarkOptions): Promise<{
+  comparison: ReturnType<typeof buildComparison>;
+  metrics: MetricsSnapshot;
+}> {
   const f = opts.fetchImpl ?? fetch;
-  for (const t of opts.transactions) {
+  const concurrency = Math.max(1, opts.concurrency ?? 1);
+  const deadline = opts.durationMs !== undefined ? Date.now() + opts.durationMs : undefined;
+  let sent = 0;
+  const post = async (t: { transactionId: string; amount: number }): Promise<void> => {
     const res = await f(`${opts.baseUrl.replace(/\/$/, '')}/accounts/${opts.accountId}/transactions`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -92,7 +106,20 @@ export async function runBenchmark(opts: {
     });
     if (!res.ok) throw new Error(`POST transactions HTTP ${res.status}`);
     await res.json();
-  }
+  };
+
+  // 工作佇列：以 concurrency 個 worker 依序取交易送單（來源 runner 的 Promise.all 語意）
+  let next = 0;
+  const workers = Array.from({ length: concurrency }, async () => {
+    while (next < opts.transactions.length) {
+      if (deadline !== undefined && Date.now() > deadline) break;
+      const t = opts.transactions[next++];
+      await post(t);
+      sent++;
+    }
+  });
+  await Promise.all(workers);
+
   const metrics = await readMetrics(opts.baseUrl, f);
   return { comparison: buildComparison(metrics), metrics };
 }
