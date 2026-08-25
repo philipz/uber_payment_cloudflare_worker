@@ -20,7 +20,7 @@ const T = (transactionId: string, amount: number): TransactionInput => ({
 });
 
 describe('GET /metrics 契約（Item 9，H7 人類核可）', () => {
-  it.skip('回 Metrics 對照：{ batched, naive } 各含 requests/dbWrites，初始為 0', async () => {
+  it('回 Metrics 對照：{ batched, naive } 各含 requests/dbWrites，初始為 0', async () => {
     const res = await SELF.fetch('https://example.com/metrics');
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toContain('application/json');
@@ -39,7 +39,7 @@ describe('GET /metrics 契約（Item 9，H7 人類核可）', () => {
     expect(body.naive.dbWrites).toBe(0);
   });
 
-  it.skip('交易提交後：batched.dbWrites ≤ batched.requests 且 naive 為數學基準（ratio=1）', async () => {
+  it('交易提交後：batched.dbWrites ≤ batched.requests 且 naive 為數學基準（ratio=1）', async () => {
     const acc = 'acc-metrics-1';
     // 同一窗口歸集為一批次 → applied_version 相同 → COUNT(DISTINCT version) = 1
     for (const t of [['m1', 100], ['m2', 30], ['m3', 5]] as Array<[string, number]>) {

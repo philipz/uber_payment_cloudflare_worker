@@ -60,6 +60,23 @@ export default {
       });
     }
 
+    // GET /metrics — 壓測對照（Item 9，H7 人類核可）：D1 對帳讀取，不觸 H2 金流計算、不觸 H4 db 層。
+    //   batched.requests = COUNT(processed_transactions)
+    //   batched.dbWrites = COUNT(DISTINCT applied_version)（每批次 version+1 = 一次 D1 寫入）
+    //   naive.*          = 數學基準（naive.dbWrites = naive.requests → ratio = 1）
+    // 回應格式與來源 runner.ts 的 Metrics 介面一致：{ batched, naive }（見 scripts/load-generator.ts）。
+    if (request.method === 'GET' && url.pathname === '/metrics') {
+      const row = await env.DB.prepare(
+        'SELECT COUNT(*) AS requests, COUNT(DISTINCT applied_version) AS dbWrites FROM processed_transactions',
+      ).first<{ requests: number; dbWrites: number }>();
+      const requests = row?.requests ?? 0;
+      const dbWrites = row?.dbWrites ?? 0;
+      return Response.json({
+        batched: { requests, dbWrites },
+        naive: { requests, dbWrites: requests },
+      });
+    }
+
     // POST /accounts/:id/transactions
     const m = url.pathname.match(/^\/accounts\/([^/]+)\/transactions$/);
     if (request.method === 'POST' && m) {
