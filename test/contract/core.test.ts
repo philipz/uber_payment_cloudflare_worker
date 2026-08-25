@@ -54,10 +54,22 @@ describe('金流核心契約（Item 6）', () => {
       const res = await postTxn(acc, T(id, amt));
       expect(res.status).toBe(202);
     }
-    await forceFlush(acc);
+    // 最終一致輪詢（比照 e26f9b9 先例）：順序 POST 的 202 僅表示已收單，最後一筆可能在
+    // forceFlush 到達 DO 前仍在輸入閘排隊而落下一窗口——輪詢直到全部入帳再斷言
+    let balance = 0;
+    let processed = 0;
+    for (let i = 0; i < 20; i++) {
+      await forceFlush(acc);
+      const { json } = await getAccount(acc);
+      balance = json.balance as number;
+      processed = json.processedCount as number;
+      if (balance === 135 && processed === 3) break;
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    expect(balance).toBe(135); // 100+30+5
+    expect(processed).toBe(3);
     const { status, json } = await getAccount(acc);
     expect(status).toBe(200);
-    expect(json.balance).toBe(135); // 100+30+5
     expect((json.version as number) >= 1).toBe(true);
     expect(json.auditCount).toBe(3);
     expect(json.processedCount).toBe(3);

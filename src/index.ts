@@ -1,15 +1,19 @@
-// uber_payment_cloudflare_worker — Worker 入口（Item 6 金流核心，第 1 期）。
+// uber_payment_cloudflare_worker — Worker 入口（Item 6 金流核心 + Item 8 SSE 儀表板）。
 // 路由：
 //   POST /accounts/:id/transactions   收單（202 Accepted；窗口歸集非同步提交）
 //   GET  /accounts/:id                查詢餘額/版本/審計筆數（驗證用）
+//   GET  /events                       SSE 訂閱（領域事件即時流；Item 8）
+//   GET  /dashboard                    單頁儀表板（EventSource 訂閱 /events；Item 8）
 //   GET  /health                      健康檢查
 //   GET  /                            骨架 smoke 用（回 OK）
 // queue consumer：finalize 下游通知（post-process stub，僅 log——審計已由主交易原子落庫）
 import { OperationType, type FinalizeJob, type TransactionInput } from './shared/types';
 import type { Env } from './platform/env';
+import { DASHBOARD_HTML } from './platform/dashboard';
 
-// DO class 必須可被 wrangler bundle 到達（class_name = "AccountDO"）
+// DO class 必須可被 wrangler bundle 到達（class_name = "AccountDO" / "EventHubDO"）
 export { AccountDO } from './platform/account-do';
+export { EventHubDO } from './platform/event-hub-do';
 
 function parseTxn(body: unknown): TransactionInput | null {
   if (!body || typeof body !== 'object') return null;
@@ -40,6 +44,20 @@ export default {
 
     if (request.method === 'GET' && url.pathname === '/health') {
       return Response.json({ status: 'ok', service: 'uber-payment-cloudflare-worker' });
+    }
+
+    // GET /events — SSE 訂閱（Item 8）：路由到 EventHub DO（單一 hub 實例）。
+    // EventSource 連線保持開啟；AccountDO 提交成功後 hub fan-out `data: <JSON>\n\n`。
+    if (request.method === 'GET' && url.pathname === '/events') {
+      const hub = env.EVENT_HUB.get(env.EVENT_HUB.idFromName('hub'));
+      return hub.fetch(request);
+    }
+
+    // GET /dashboard — 單頁儀表板（Item 8，來源 batch-creator/dashboard.ts 移植）。
+    if (request.method === 'GET' && url.pathname === '/dashboard') {
+      return new Response(DASHBOARD_HTML, {
+        headers: { 'content-type': 'text/html; charset=utf-8' },
+      });
     }
 
     // POST /accounts/:id/transactions
