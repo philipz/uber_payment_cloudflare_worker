@@ -19,7 +19,7 @@ Queues）的落地方案。對應 Factory Item 6（金流核心）。逐項對�
 | `MAX_OCC_RETRIES=20` | DO `commitBatch` 迴圈重試 + jitter（`MAX_OCC_RETRIES = 20`） | 單一寫入者使衝突結構性不可能；guard 為防禦性，衝突時 random jitter 後重試。 |
 | `migration` 種子帳戶 | `migrations/0001_init.sql`（`hot-account-1`） | 來源「種子後任意帳戶可收單」語意：commitBatch 對不存在帳戶 `INSERT OR IGNORE` 自動建立。 |
 | finalize 下游佇列 `finalize:queue`（`FINALIZE_QUEUE`）| **Queues** `finalize-queue`（producer `FINALIZE_QUEUE` + consumer） | at-least-once；`FINALIZE_QUEUE.send({accountId,batchId,count})`，consumer 目前為 stub（僅 log），遺失不影響審計。死信 `finalize-dlq`。 |
-| Redis pub/sub 事件廣播（`EVENTS_CHANNEL`） | 規劃中 | `src/shared/events.ts` 只移 `formatEventLog`/`emitEventLog`（log 部分）；Redis 廣播平台側尚未落地。見「未實作（規劃中）」節。 |
+| Redis pub/sub 事件廣播（`EVENTS_CHANNEL`） | **EventHub DO**（Item 8 已落地） | `src/platform/event-hub-do.ts` 取代 Redis pub/sub 廣播角色：SSE 客戶端 `GET /events` 訂閱 hub，AccountDO commit 成功後 `POST /publish` 發布 `Committed` 事件，hub fan-out `data: <JSON>\n\n`；`/dashboard` 回來源移植的單頁儀表板。`formatSseData` 純函式於 `src/shared/events.ts`（與來源 payload 一致）。 |
 | 可靠佇列 worker 心跳/重認領（`WORKERS_SET`、BLMOVE） | **不移植（已取代）** | 來源的 BLMOVE + 心跳重認領語意被 DO 單一寫入者取代，不需工作集心跳；`keys.ts` 的 worker 小工具僅保留追溯，無對應落地。 |
 
 ## D1 schema 對映
@@ -54,17 +54,20 @@ MD5 以純 JS 實作（`src/platform/md5.ts`，RFC 1321），因 Workers 無 nod
 | `/health` | GET | 健康檢查 |
 | `/accounts/:id/transactions` | POST | 解析交易 → 路由到 `ACCOUNT_DO` → `accumulate`（202 Accepted） |
 | `/accounts/:id` | GET | 從 D1 讀餘額/版本/審計/已處理筆數（驗證用） |
+| `/events` | GET | SSE 訂閱（Item 8）：路由到 EventHub DO，領域事件即時流 |
+| `/dashboard` | GET | 單頁儀表板（Item 8）：EventSource 訂閱 `/events`，即時顯示狀態機流轉 |
 | queue consumer `finalize-queue` | — | 接收 `FinalizeJob{accountId,batchId,count}`，僅 log（post-process stub） |
 
 ## 未實作（規劃中）
 
-- **Redis pub/sub 事件廣播**（`EVENTS_CHANNEL`）：領域事件目前僅走 log
-  （`emitEventLog`）；即時廣播/儀表板 SSE 屬後續工作項。
 - **可靠佇列心跳 / 重認領**（`keys.ts` 的 `WORKERS_SET` / BLMOVE 語意）：**不移植（已取代）**
   ——被 DO 單一寫入者取代，非「待移植」項目；`keys.ts` 小工具僅保留來源追溯。
 - **狀態機完整狀態流（Tentative → Finalized）與 post-process 全功能**：
   `audit.status` 目前僅寫 `Committed`（Tentative 為 stub，與來源一致），`finalize`
   consumer 僅 log。
+- **儀表板 `/metrics` 對照區塊**（來源儀表板輪詢 `/metrics`）：依 Item 9
+  （load-generator）落地後自動生效；目前該區塊 try/catch 靜默。領域事件廣播
+  （`EVENTS_CHANNEL`）本身已由 Item 8（EventHub DO + SSE）落地。
 
 ## 對照依據
 

@@ -19,7 +19,7 @@
 | Redis TIME 權威時鐘 + Lua 原子窗口歸集（`ACCUMULATE_LUA` / `CLOSE_ONE_LUA` / `SWEEP_LUA`） | **Account Durable Object**：單一寫入者串行化 + 250ms 窗口歸集（事件驅動 lazy flush + alarm 兜底） |
 | Redis 全域佇列 / processing list / 心跳 / 重認領（BLMOVE / LREM / `RECLAIM_LUA`） | Account DO 內部的持久化 buffer + alarm 重試；Exactly-Once 由「at-least-once + 冪等去重」達成 |
 | Postgres 單一 DB 交易（OCC 條件 UPDATE + 冪等 INSERT + 審計 INSERT） | **D1 `batch()` 原子交易** + `changes()` 門控 + D1 Sessions（first-primary） |
-| Redis Pub/Sub → SSE 儀表板 | **Queues** finalize 下游通知（consumer 為 post-process stub） |
+| Redis Pub/Sub → SSE 儀表板 | **EventHub DO**（Item 8）：`GET /events` SSE 訂閱 + `GET /dashboard` 單頁儀表板；Queues finalize 下游通知（consumer 為 post-process stub） |
 | `microUacFor`（MD5 收斂 48-byte MicroUAC） | **純 JS MD5**（RFC 1321，位元組相容）+ `micro-uac-for` |
 
 ---
@@ -30,6 +30,7 @@
 ┌─────────────────────────────────────────────────────────────┐
 │  Client                                                      │
 │  POST /accounts/:id/transactions  GET /accounts/:id  /health │
+│  GET /events（SSE 訂閱）  GET /dashboard（儀表板）            │
 └───────────────┬─────────────────────────────────────────────┘
                 │ 路由（src/index.ts，薄 handler）
 ┌───────────────▼─────────────────────────────────────────────┐
@@ -45,11 +46,11 @@
                  │ 1. UPDATE accounts SET balance, version+1 WHERE version=?
                  │ 2. INSERT processed_transactions … WHERE changes()=1
                  │ 3. INSERT audit (48-byte MicroUAC) … WHERE changes()=1
-                 ▼
-   ┌─────────────────────┐      ┌──────────────────────────┐
-   │  D1（SQLite）        │      │  Queues finalize-queue   │
-   │  accounts            │      │  at-least-once 下游通知  │
-   │  processed_transactions│     │  consumer：僅 log        │
+                 ▼                                    │ Committed 事件
+   ┌─────────────────────┐      ┌──────────────────────────┐   ▼
+   │  D1（SQLite）        │      │  Queues finalize-queue   │  EventHub DO（Item 8）
+   │  accounts            │      │  at-least-once 下游通知  │  SSE fan-out → /events
+   │  processed_transactions│     │  consumer：僅 log        │  /dashboard 訂閱
    │  audit（MicroUAC）    │      └──────────────────────────┘
    └─────────────────────┘
 ```
@@ -65,14 +66,17 @@ src/
 │   └── microuac.ts           # 48-byte MicroUAC 編解碼（Buffer→Uint8Array/DataView，位元組相容）
 └── platform/                 # 平台綁定層
     ├── account-do.ts         # Account Durable Object（核心）
+    ├── event-hub-do.ts       # EventHub Durable Object（Item 8：SSE fan-out，取代 Redis pub/sub）
+    ├── dashboard.ts          # 單頁儀表板 HTML（Item 8，來源移植）
     ├── env.ts                # Env bindings 型別
     ├── md5.ts                # 純 JS MD5（RFC 1321）
     └── micro-uac-for.ts      # microUacFor：transactionId MD5 前 8 bytes→Int64、referenceId MD5→16B
 migrations/
-└── 0001_init.sql             # D1 schema（accounts / processed_transactions / audit + 種子）
+├── 0001_init.sql             # D1 schema（accounts / processed_transactions / audit + 種子）
 test/
 ├── unit/                     # 純邏輯測試（operations / microuac / md5 / config / keys / events）
-└── contract/core.test.ts     # 金流契約整合測試（@cloudflare/vitest-plugin，workerd 內跑）
+├── contract/core.test.ts     # 金流契約整合測試（@cloudflare/vitest-plugin，workerd 內跑）
+└── contract/sse.test.ts      # SSE 儀表板契約（Item 8：/events 訂閱收到 Committed、/dashboard HTML）
 wrangler.toml                 # bindings：D1（DB）/ DO（ACCOUNT_DO）/ Queues（FINALIZE_QUEUE）
 ```
 
@@ -224,6 +228,9 @@ npx wrangler deploy
 - **單帳戶 DO 軟上限 ~1,000 req/s**；超限排隊，隊滿回 `overloaded`。
 - **alarm 延遲**：冷批次（無新請求）的窗口關閉可能延遲至 alarm 到點（最壞 1 分鐘）；有持續請求時按 deadline 準時。
 - **D1 寫入計費較貴**（$1.00/M rows written）— 窗口歸集合併寫入正是省錢關鍵。
-- **第 1 期範圍**（Q7a）：不含 dashboard/SSE、load-generator 壓測對照、多 AZ worker；post-process 為 log stub。
+- **第 1 期範圍**（Q7a）：不含 load-generator 壓測對照、多 AZ worker；post-process 為 log stub。
+  dashboard/SSE 已於 **Item 8** 落地（`/events` SSE + `/dashboard`，見 §2 架構總覽）。
 - **審計 `Tentative` 狀態**為 stub（與來源一致）。
+- **SSE 為純觀測**：事件廣播失敗不影響主流程（non-blocking，與來源 emitEvent 語意一致）；
+  斷線客戶端由 EventSource 自動重連。
 - 來源語意完整對映表見 `docs/factory-work-items-cloudflare-port.md`；移植可行性研究見 software_factory 的 `docs/17-cf-workers-porting-research.md`。
