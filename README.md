@@ -19,7 +19,7 @@
 | Redis TIME 權威時鐘 + Lua 原子窗口歸集（`ACCUMULATE_LUA` / `CLOSE_ONE_LUA` / `SWEEP_LUA`） | **Account Durable Object**：單一寫入者串行化 + 250ms 窗口歸集（事件驅動 lazy flush + alarm 兜底） |
 | Redis 全域佇列 / processing list / 心跳 / 重認領（BLMOVE / LREM / `RECLAIM_LUA`） | Account DO 內部的持久化 buffer + alarm 重試；Exactly-Once 由「at-least-once + 冪等去重」達成 |
 | Postgres 單一 DB 交易（OCC 條件 UPDATE + 冪等 INSERT + 審計 INSERT） | **D1 `batch()` 原子交易** + `changes()` 門控 + D1 Sessions（first-primary） |
-| Redis Pub/Sub → SSE 儀表板 | **EventHub DO**（Item 8）：`GET /events` SSE 訂閱 + `GET /dashboard` 單頁儀表板；Queues finalize 下游通知（consumer 為 post-process stub） |
+| Redis Pub/Sub → SSE 儀表板 | **EventHub DO**（Item 8）：`GET /events` SSE 訂閱 + `GET /dashboard` 單頁儀表板；Queues finalize 下游通知（Item 10：post-process 發布 Finalized 事件到 EventHub） |
 | `microUacFor`（MD5 收斂 48-byte MicroUAC） | **純 JS MD5**（RFC 1321，位元組相容）+ `micro-uac-for` |
 
 ---
@@ -247,9 +247,10 @@ npx wrangler deploy
 - **D1 寫入計費較貴**（$1.00/M rows written）— 窗口歸集合併寫入正是省錢關鍵。
 - **壓測對照已於 Item 9 落地**：`GET /metrics`（D1 對帳計數）+ `scripts/load-generator.ts`
   （batched vs naive 壓縮比 runner）；naive 以數學基準定義（`ratio = 1`），不新增金流邏輯。
-- **第 1 期範圍**（Q7a）：不含多 AZ worker；post-process 為 log stub。
-  dashboard/SSE 已於 **Item 8** 落地（`/events` SSE + `/dashboard`，見 §2 架構總覽）。
-- **審計 `Tentative` 狀態**為 stub（與來源一致）。
+- **第 1 期範圍**（Q7a）：不含多 AZ worker。dashboard/SSE 已於 **Item 8** 落地
+  （`/events` SSE + `/dashboard`）；post-process 已於 **Item 10** 落地（queue consumer
+  發布 Finalized 事件 + Kafka stub log）。
+- **審計 `Tentative` 狀態**為 stub（與來源一致；人類裁決不補實，issue #36）。
 - **SSE 為純觀測**：事件廣播失敗不影響主流程（non-blocking，與來源 emitEvent 語意一致）；
   斷線客戶端由 EventSource 自動重連。
 - 來源語意完整對映表見 `docs/factory-work-items-cloudflare-port.md`；移植可行性研究見 software_factory 的 `docs/17-cf-workers-porting-research.md`。

@@ -83,11 +83,16 @@
   審計（審計已主交易落庫，下游僅傳播）
 
 **驗收標準（DoD）**：
-- [ ] 有可驗證的測試/驗證方式：consumer 發布 Finalized 事件的契約測試紅→綠；
+- [x] 有可驗證的測試/驗證方式：consumer 發布 Finalized 事件的契約測試紅→綠；
   `quint verify` 的 `auditEqualsProcessed` / `statusCommitted` / `balanceEqualsSignedSum`
   迴歸不破（spec 若因狀態流改變而需調整 → 先呈報人類核准 spec diff）
-- [ ] 不觸碰高風險路徑：審計/狀態流屬 H2（金流核心）→ 人類主導；migrations 屬 H6
-- [ ] 跑測試確認綠燈：`npm run test:unit` + CI 綠 + `quint-verify` 綠
+- [x] 不觸碰高風險路徑：審計/狀態流屬 H2（金流核心）→ 人類主導；migrations 屬 H6
+- [x] 跑測試確認綠燈：`npm run test:unit` + CI 綠 + `quint-verify` 綠
+
+**狀態**：✅ 完成（issue #36，2026-08-25）——人類裁決 Tentative **不補實**（與來源
+一致）；queue consumer 發布 Finalized 事件到 EventHub（Item 8）+ Kafka stub log
+（`src/platform/post-process.ts` `handleFinalizeJob` 純邏輯）；契約測試 4 條 + quint
+9 不變量迴歸不破。
 
 **目標 repo**：`philipz/uber_payment_cloudflare_worker`
 

@@ -11,6 +11,8 @@
 import { OperationType, type FinalizeJob, type TransactionInput } from './shared/types';
 import type { Env } from './platform/env';
 import { DASHBOARD_HTML } from './platform/dashboard';
+import { publishEvent } from './platform/publish-event';
+import { handleFinalizeJob } from './platform/post-process';
 
 // DO class 必須可被 wrangler bundle 到達（class_name = "AccountDO" / "EventHubDO"）
 export { AccountDO } from './platform/account-do';
@@ -130,11 +132,15 @@ export default {
     return new Response('Not Found', { status: 404 });
   },
 
-  // finalize 下游通知（post-process stub；審計已由主交易原子落庫，此處僅傳播）
-  async queue(batch: MessageBatch<FinalizeJob>): Promise<void> {
+  // finalize 下游通知（Item 10，H2 人類裁決）：post-process 全功能——審計已由主交易
+  // 原子落庫，此處僅做下游傳播：(1) Kafka stub log (2) Finalized 領域事件發布到
+  // EventHub DO（Item 8 已建）→ SSE 儀表板顯示。事件發布 non-blocking（來源
+  // emitEvent 同語意）；此佇列遺失不影響審計。
+  async queue(batch: MessageBatch<FinalizeJob>, queueEnv: Env): Promise<void> {
     for (const msg of batch.messages) {
-      const job = msg.body;
-      console.log(`[finalize] account=${job.accountId} batch=${job.batchId} count=${job.count}`);
+      await handleFinalizeJob(msg.body, (event) => publishEvent(queueEnv, event)).catch(() => {
+        /* 事件廣播失敗 non-blocking（來源 emitEvent 同語意） */
+      });
     }
   },
 } satisfies ExportedHandler<Env, FinalizeJob>;
