@@ -9,6 +9,7 @@
 //
 // 此測試層（01-test）先以 it.skip 提交（斷言完整保留、該層獨立綠燈）；02-impl 層
 // un-skip 並在 src/index.ts 新增 GET /metrics 端點後轉綠。
+// Issue #60：擴充同帳戶兩批次 → batched.dbWrites=2，釘住 COUNT(DISTINCT applied_version) 語意。
 import { describe, expect, it } from 'vitest';
 import { env, SELF } from 'cloudflare:test';
 import { OperationType, type TransactionInput } from '../../src/shared/types';
@@ -90,5 +91,55 @@ describe('GET /metrics 契約（Item 9，H7 人類核可）', () => {
     // naive：數學基準，dbWrites = requests（ratio = 1），與 batched 同負載
     expect(body.naive.requests).toBe(body.batched.requests);
     expect(body.naive.dbWrites).toBe(body.naive.requests);
+  });
+});
+
+describe('GET /metrics 兩批次語意（Issue #60）', () => {
+  it('同帳戶兩批次 → batched.dbWrites=2（釘住 COUNT(DISTINCT applied_version)）', async () => {
+    const acc = 'acc-metrics-2batch';
+
+    // 第一批次
+    await SELF.fetch(`https://example.com/accounts/${acc}/transactions`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(T('mb1', 10)),
+    });
+    await forceFlush(acc);
+
+    // 等第一批確定寫入
+    let processed = 0;
+    for (let i = 0; i < 50; i++) {
+      const accRes = await SELF.fetch(`https://example.com/accounts/${acc}`);
+      const accJson = (await accRes.json()) as { processedCount: number };
+      processed = accJson.processedCount ?? 0;
+      if (processed >= 1) break;
+      await new Promise((r) => setTimeout(r, 50));
+    }
+
+    // 第二批次（強制新窗口——flush 後開新窗口）
+    await SELF.fetch(`https://example.com/accounts/${acc}/transactions`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(T('mb2', 20)),
+    });
+    await forceFlush(acc);
+
+    // 等第二批
+    for (let i = 0; i < 50; i++) {
+      const accRes = await SELF.fetch(`https://example.com/accounts/${acc}`);
+      const accJson = (await accRes.json()) as { processedCount: number };
+      processed = accJson.processedCount ?? 0;
+      if (processed >= 2) break;
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    expect(processed).toBe(2);
+
+    // 驗證 applied_version 有兩個不同值
+    const versions = await e.DB.prepare(
+      'SELECT DISTINCT applied_version FROM processed_transactions WHERE account_id = ?',
+    )
+      .bind(acc)
+      .all<{ applied_version: number }>();
+    expect(versions.results.length).toBe(2);
   });
 });
