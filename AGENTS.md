@@ -1,21 +1,39 @@
 # Repository Guidelines
 
-> **現況**：本 repo 目前為空骨架（僅 LICENSE），Cloudflare Worker 專案尚未落地。下列指引分
-> 「已生效」與「待落地」兩部分——工廠（software factory）規範已生效；專案慣例待骨架落地後補齊。
+> **現況**：Cloudflare Worker 專案已落地（`src/` + `test/` + `migrations/` + `specs/`），77 tests 全綠。
+> 工廠（software factory）規範採用**集中化 guardrail 架構（ADR-012）**：機制 repo
+> （`philipz/software_factory`）是唯一事實來源，本 repo **不持有會漂移的副本**——無
+> `.dsh/skills`、無 factory-issue-check workflow、無 task-template / issue-template 副本。
 
-## Factory（軟體工廠）— 已生效
-- 依 `.dsh/skills/` 的 factory-workflow 處理工作項：讀 Issue → 測試先行 → 實作 → 自審 → 拆 stacked PR → 寫 `.factory/run/report.json`。
-- stacked PR 的 base 一律為 `software-factory` 分支（**絕不 push 到 main**）；分支命名 `factory/<issue編號>-<nn>-<layer>`（見 factory-pr-stacking）。
-- 觸發 factory-stop-rules 任一規則即停手並貼 `needs-human`；不得修改 guardrail（`.github/**`、`CODEOWNERS`、`catalog-info.yaml`、`.dsh/skills/**`）。
+## Factory（軟體工廠）
+- **Skills 單一事實來源在 software_factory 的 `.dsh/skills/`**（本 repo 無 `.dsh/skills`）：
+  - CI：factory-run 會把 skills 同步到 `$HOME/.dsh/skills`（DSH rank 400 user-dsh）供 agent 載入；
+  - 本機：執行 software_factory checkout 內的 `scripts/setup-local-dsh.sh` 完成一次性設定
+    （冪等；在雲端 VM / 換機器時 clone software_factory 後重跑同一支腳本即可）。手動等效設定：
+    ```yaml
+    skill-filesystem:
+      customSkillDirs:
+        - /path/to/software_factory/.dsh/skills
+    ```
+  - 依 factory-workflow 處理工作項：讀 Issue → 測試先行 → 實作 → 自審 → 拆 stacked PR → 寫 `.factory/run/report.json`。
+- **Issue 格式檢查集中於 factory-run 首步**（ADR-011 三行留言：格式合規＋複雜度分析＋建議模型），
+  不合規即紅燈停派；開立工作項統一走 Backstage（建 Issue → dispatch factory-run）。
+- stacked PR 的 base 一律為 `software-factory` 分支（**絕不 push 到 main**）；分支命名
+  `factory/<issue編號>-<nn>-<layer>`（見 factory-pr-stacking）。
+- 觸發 factory-stop-rules 任一規則即停手並貼 `needs-human`；不得修改 guardrail
+  （`.github/**`、`CODEOWNERS`、`catalog-info.yaml`）。
 - Commit 採 Conventional Commits（`feat:` / `fix:` / `test:` / `docs:` / `chore:`）。
 
-## Project Structure（待落地 — 依 Cloudflare Worker + TypeScript 慣例）
-- 預期結構：`src/index.ts`（fetch handler 入口）、`src/routes/` 或 `src/handlers/`、`src/shared/`（共用模組）、`migrations/`（D1 SQL）、`test/`；設定檔 `wrangler.toml` + `.dev.vars`（gitignored）。
-- 結構盤點與風險路徑以 `.github/factory/risk-paths.yml` 的 pattern 為準——該檔目前為**預先宣告**，程式碼落地後需依實際結構修訂。
+## Project Structure（Cloudflare Worker + TypeScript）
+- `src/index.ts`（fetch handler 入口）、`src/platform/`（DO / 路由語意對映層）、
+  `src/shared/`（共用模組）、`migrations/`（D1 SQL）、`test/`（unit / contract / quint）、
+  `specs/`（Quint 規格）、`scripts/`（load-generator）。
+- 結構盤點與風險路徑以 `.github/factory/risk-paths.yml` 的 pattern 為準
+  （H2：`src/platform/**`、`src/shared/operations.ts`、`src/shared/microuac.ts`；H7：`src/index.ts`、`src/**/events.ts`）。
 
-## Build, Test & Development Commands（待落地）
-- 骨架落地後補齊並更新本節：`npm ci`、`npm run test`（vitest）、`npx wrangler dev`、`npx wrangler deploy`。
-- CI（`.github/workflows/test.yml`）目前以 guard 跳過測試（尚無 `package.json`）；一旦骨架落地即自動生效。
+## Build, Test & Development Commands
+- `npm ci`、`npm run test`（vitest + cloudflare plugin，workerd 環境）、`npm run test:oracle`（Quint oracle，純 Node）。
+- `npx wrangler dev`（本機）、`npx wrangler deploy`（部署）；機密走 `wrangler secret put`，`.dev.vars` 僅本機、已 gitignored。
 
 ## Configuration & Operations Tips
 - 機密一律走 Cloudflare secrets（`wrangler secret put`），不 commit；`.dev.vars` 僅供本機、已 gitignored。
