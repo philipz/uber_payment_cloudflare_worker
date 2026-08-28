@@ -227,12 +227,16 @@ npx wrangler deploy
 
 ## 9. 軟體工廠（software factory）
 
-本 repo 已配置軟體工廠全套機制（比照 spring-modulith-orders）：
+本 repo 已配置軟體工廠全套機制（比照 spring-modulith-orders），並採用**集中化 guardrail 架構**
+（ADR-012）：機制 repo（`philipz/software_factory`）是唯一事實來源，本 repo **不持有會漂移的副本**：
 
-- `.dsh/skills/factory-*`：factory-workflow / stop-rules / pr-stacking / self-review
-- `.github/ISSUE_TEMPLATE/factory-work-item.yml`：開立工作項表單
-- `.github/factory/`：risk-paths（H1–H7 硬規則）、task-template-*
-- `.github/workflows/`：factory-issue-check / Tests / Security Scan / CodeQL
+- **Skills**（factory-workflow / stop-rules / pr-stacking / self-review / quint-*）：單一事實來源在
+  software_factory 的 `.dsh/skills/`；CI 由 factory-run 同步到共享 root，本機開發以
+  `~/.dsh/settings.yaml` 的 `skill-filesystem.customSkillDirs` 指向 software_factory checkout
+- **Issue 格式檢查**：集中於 factory-run 首步（ADR-011 三行留言：格式合規＋複雜度分析＋建議模型）
+- **開立工作項**：統一走 Backstage（factory-work-item template）→ 建 Issue → dispatch factory-run
+- `.github/factory/`：僅保留 repo-local 的 `risk-paths.yml`（H1–H7 硬規則）與 `quint-paths.yml`
+- `.github/workflows/`：Tests / Security Scan / CodeQL（repo-local 通用 CI）+ quint-verify（本 repo 專用）
 - 工廠 trunk = **`software-factory` 分支**（agent 絕不 push main，Q-P2-1）
 - 金流核心（SR2）由**人類主導**，factory agent 只負責非金流工作項
 
