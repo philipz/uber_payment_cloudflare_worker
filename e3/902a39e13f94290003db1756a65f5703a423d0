@@ -1,0 +1,16 @@
+AGENTS.md
+  h_1b119f25eaf333 3-6,8-23,26-31,33-35
+README.md
+  h_1b119f25eaf333 230-239
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "e3902a39e13f94290003db1756a65f5703a423d0",
+  "prompts": {},
+  "humans": {
+    "h_1b119f25eaf333": {
+      "author": "philipz <philipzheng@gmail.com>"
+    }
+  }
+}
