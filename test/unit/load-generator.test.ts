@@ -7,6 +7,7 @@
 //
 // readMetrics/runBenchmark 的網路層以注入 fetchImpl 驗證（不依賴真實網路／workerd），
 // 序列化格式與 /metrics 契約一致（見 test/contract/metrics.test.ts）。
+// Issue #60：擴充 durationMs 截止、空交易邊界。
 import { describe, expect, it } from 'vitest';
 import {
   buildComparison,
@@ -138,5 +139,62 @@ describe('runBenchmark（POST 單 → 讀 /metrics → 對照輸出）', () => {
         fetchImpl: fakeFetch,
       }),
     ).rejects.toThrow('HTTP 429');
+  });
+});
+
+describe('runBenchmark 邊界條件（Issue #60）', () => {
+  const metricsJson: MetricsSnapshot = {
+    batched: { requests: 0, dbWrites: 0 },
+    naive: { requests: 0, dbWrites: 0 },
+  };
+
+  it('durationMs 截止後停止送單', async () => {
+    let posted = 0;
+    const fakeFetch = async (url: string, init?: RequestInit): Promise<Response> => {
+      if (String(init?.method).toUpperCase() === 'POST') {
+        // 模擬每筆 POST 耗時 50ms
+        await new Promise((r) => setTimeout(r, 50));
+        posted++;
+        return new Response(JSON.stringify({ ok: true }), { status: 202 });
+      }
+      return new Response(JSON.stringify(metricsJson), { status: 200 });
+    };
+
+    // 10 筆交易，每筆 50ms，總共需 500ms
+    // durationMs = 150ms → 預期約 3 筆（視 timing 有誤差）
+    const res = await runBenchmark({
+      baseUrl: 'https://test.dev',
+      accountId: 'acc-dur',
+      transactions: Array.from({ length: 10 }, (_, i) => ({ transactionId: `dur-${i}`, amount: 1 })),
+      durationMs: 150,
+      fetchImpl: fakeFetch,
+    });
+
+    // 由於 timing 不確定，只斷言 posted < 10（截止有效）
+    expect(posted).toBeLessThan(10);
+    expect(res.metrics).toEqual(metricsJson);
+  });
+
+  it('空交易列表 → 直接讀 /metrics 回傳', async () => {
+    let posted = 0;
+    const snap: MetricsSnapshot = { batched: { requests: 5, dbWrites: 2 }, naive: { requests: 5, dbWrites: 5 } };
+    const fakeFetch = async (url: string, init?: RequestInit): Promise<Response> => {
+      if (String(init?.method).toUpperCase() === 'POST') {
+        posted++;
+        return new Response(JSON.stringify({ ok: true }), { status: 202 });
+      }
+      return new Response(JSON.stringify(snap), { status: 200 });
+    };
+
+    const res = await runBenchmark({
+      baseUrl: 'https://test.dev',
+      accountId: 'acc-empty',
+      transactions: [],
+      fetchImpl: fakeFetch,
+    });
+
+    expect(posted).toBe(0);
+    expect(res.metrics).toEqual(snap);
+    expect(res.comparison.batched.requests).toBe(5);
   });
 });

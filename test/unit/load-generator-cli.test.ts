@@ -1,6 +1,7 @@
 // Item 9 CLI（scripts/load-generator-cli.ts）純函式單元測試。
 // 覆蓋：parseArgs 參數解析（--key value / --key=value / 缺參數 / 非法數值）、
 // buildTransactions（數量與唯一性）、runBenchmark 並發語意（fake fetch 計數）。
+// Issue #60：擴充 --duration-ms 邊界、未知 flag。
 import { describe, expect, it } from 'vitest';
 import { buildTransactions, parseArgs } from '../../scripts/load-generator-cli';
 import { runBenchmark, type MetricsSnapshot } from '../../scripts/load-generator';
@@ -24,12 +25,54 @@ describe('parseArgs（CLI 參數解析）', () => {
   });
 });
 
+describe('parseArgs --duration-ms 邊界（Issue #60）', () => {
+  it('--duration-ms 有效正數', () => {
+    const a = parseArgs(['--base-url', 'https://x.dev', '--account', 'a', '--duration-ms', '3000']);
+    expect(a.durationMs).toBe(3000);
+  });
+
+  it('--duration-ms=0 視為有效（立即截止）', () => {
+    const a = parseArgs(['--base-url', 'https://x.dev', '--account', 'a', '--duration-ms=0']);
+    expect(a.durationMs).toBe(0);
+  });
+
+  it('--duration-ms 負數 → 拋錯', () => {
+    expect(() => parseArgs(['--base-url', 'https://x.dev', '--account', 'a', '--duration-ms', '-100'])).toThrow('--duration-ms');
+  });
+
+  it('--duration-ms 非數值 → 拋錯', () => {
+    expect(() => parseArgs(['--base-url', 'https://x.dev', '--account', 'a', '--duration-ms', 'abc'])).toThrow('--duration-ms');
+  });
+});
+
+describe('parseArgs 未知 flag（Issue #60 釘住現行語意）', () => {
+  // 現行語意：未知 flag 被忽略（不拋錯）——純寬鬆解析
+  it('未知 flag 被忽略（不影響必填參數）', () => {
+    const a = parseArgs(['--base-url', 'https://x.dev', '--account', 'a', '--unknown-flag', 'value', '--weird=123']);
+    expect(a.baseUrl).toBe('https://x.dev');
+    expect(a.accountId).toBe('a');
+  });
+});
+
 describe('buildTransactions', () => {
   it('產生指定數量且 transactionId 唯一', () => {
     const txs = buildTransactions(10, 3);
     expect(txs).toHaveLength(10);
     expect(txs.every((t) => t.amount === 3)).toBe(true);
     expect(new Set(txs.map((t) => t.transactionId)).size).toBe(10);
+  });
+});
+
+describe('buildTransactions 邊界（Issue #60）', () => {
+  it('count = 0 → 空陣列', () => {
+    const txs = buildTransactions(0, 1);
+    expect(txs).toEqual([]);
+  });
+
+  it('amount = 0 → 所有交易 amount = 0', () => {
+    const txs = buildTransactions(3, 0);
+    expect(txs).toHaveLength(3);
+    expect(txs.every((t) => t.amount === 0)).toBe(true);
   });
 });
 
