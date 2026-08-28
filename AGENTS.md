@@ -8,7 +8,8 @@
 ## Factory（軟體工廠）
 - **Skills 單一事實來源在 software_factory 的 `.dsh/skills/`**（本 repo 無 `.dsh/skills`）：
   - CI：factory-run 會把 skills 同步到 `$HOME/.dsh/skills`（DSH rank 400 user-dsh）供 agent 載入；
-  - 本機：在 `~/.dsh/settings.yaml` 設定 `skill-filesystem.customSkillDirs` 指向 software_factory checkout（rank 300）：
+  - 本機：執行 software_factory checkout 內的 `scripts/setup-local-dsh.sh` 完成一次性設定
+    （冪等；在雲端 VM / 換機器時 clone software_factory 後重跑同一支腳本即可）。手動等效設定：
     ```yaml
     skill-filesystem:
       customSkillDirs:
