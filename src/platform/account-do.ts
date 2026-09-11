@@ -37,12 +37,19 @@ export class AccountDO extends DurableObject<Env> {
   private windowStart: number | null = null;
   private accountId: string | null = null;
   private readonly storage = this.ctx.storage;
+  private inFlightFlush: Promise<{ ok: boolean; count: number; batchId?: string }> | null = null;
+  private loadingPromise: Promise<void> | null = null;
 
   private async ensureLoaded(): Promise<void> {
     if (this.buffer !== null) return;
-    this.buffer = (await this.storage.get<TransactionInput[]>('buffer')) ?? [];
-    this.windowStart = (await this.storage.get<number>('windowStart')) ?? null;
-    this.accountId = (await this.storage.get<string>('accountId')) ?? null;
+    if (this.loadingPromise !== null) return this.loadingPromise;
+    this.loadingPromise = (async () => {
+      this.buffer = (await this.storage.get<TransactionInput[]>('buffer')) ?? [];
+      this.windowStart = (await this.storage.get<number>('windowStart')) ?? null;
+      this.accountId = (await this.storage.get<string>('accountId')) ?? null;
+      this.loadingPromise = null;
+    })();
+    return this.loadingPromise;
   }
 
   private async persist(): Promise<void> {
@@ -97,16 +104,24 @@ export class AccountDO extends DurableObject<Env> {
     this.buffer!.push(txn);
     await this.persist();
 
+    const currentWindowStart = this.windowStart;
+    const currentBuffered = this.buffer!.length;
+
     if (now >= this.windowStart + WINDOW_MS || this.buffer!.length >= MAX_BATCH_TXNS) {
       await this.flush(accountId);
       await this.ensureLoaded();
     }
 
-    return { ok: true, windowStart: this.windowStart, buffered: this.buffer!.length };
+    return { ok: true, windowStart: currentWindowStart, buffered: currentBuffered };
   }
 
   /** 關窗：組成 batch → D1 原子提交（OCC + 冪等 + 審計）→ Queues 下游通知。 */
   async flush(accountId: string): Promise<{ ok: boolean; count: number; batchId?: string }> {
+    // 互斥保證：若前一次 flush 仍在進行中（D1 子請求未持鎖），先等待其完成
+    while (this.inFlightFlush !== null) {
+      await this.inFlightFlush;
+    }
+
     await this.ensureLoaded();
     if (this.buffer === null || this.buffer.length === 0 || this.windowStart === null) {
       this.windowStart = null;
@@ -116,23 +131,37 @@ export class AccountDO extends DurableObject<Env> {
       return { ok: true, count: 0 };
     }
 
-    const txns = this.buffer;
-    const windowStart = this.windowStart;
-    const batchId = `${accountId}:${windowStart}`;
+    // Double Buffering：立即分離在途緩衝區，使 commitBatch 等待 D1 期間新入站的 accumulate 交易
+    // 不會被後續清空覆蓋，而是安全進入下一窗口
+    const inFlightTxns = this.buffer;
+    const inFlightWindowStart = this.windowStart;
+    const batchId = `${accountId}:${inFlightWindowStart}`;
 
-    try {
-      await this.commitBatch(accountId, batchId, windowStart, txns);
-      // 提交成功才清 buffer（失敗保留 → alarm 重試；重複提交由冪等去重吸收）
-      this.buffer = [];
-      this.windowStart = null;
-      await this.storage.deleteAlarm();
-      await this.persist();
-      return { ok: true, count: txns.length, batchId };
-    } catch (err) {
-      // at-least-once：保留 buffer，alarm 稍後重試
-      await this.storage.setAlarm(Date.now() + FLUSH_RETRY_MS);
-      throw err;
-    }
+    this.buffer = [];
+    this.windowStart = null;
+    await this.storage.deleteAlarm();
+    await this.persist();
+
+    const doFlush = async () => {
+      try {
+        await this.commitBatch(accountId, batchId, inFlightWindowStart, inFlightTxns);
+        return { ok: true, count: inFlightTxns.length, batchId };
+      } catch (err) {
+        // at-least-once：提交失敗將未提交成功的交易放回 buffer 前端，重設 alarm
+        this.buffer = [...inFlightTxns, ...(this.buffer ?? [])];
+        if (this.windowStart === null) {
+          this.windowStart = inFlightWindowStart;
+        }
+        await this.persist();
+        await this.storage.setAlarm(Date.now() + FLUSH_RETRY_MS);
+        throw err;
+      } finally {
+        this.inFlightFlush = null;
+      }
+    };
+
+    this.inFlightFlush = doFlush();
+    return await this.inFlightFlush;
   }
 
   /** D1 原子提交：OCC 條件 UPDATE + processed 冪等 INSERT + audit INSERT（48-byte MicroUAC）。 */
@@ -172,14 +201,20 @@ export class AccountDO extends DurableObject<Env> {
       // 每次 commit 讀取量 = 批次大小，與帳戶歷史無關。dedupe 只檢查「本批次交易是否
       // 已處理」，不在本批次的 txid 本就不會被檢查——語意完全等價。
       const txIds = txns.map((t) => t.transactionId);
-      const placeholders = txIds.map(() => '?').join(',');
-      const processed = await session
-        .prepare(
-          `SELECT transaction_id FROM processed_transactions WHERE account_id = ? AND transaction_id IN (${placeholders})`,
-        )
-        .bind(accountId, ...txIds)
-        .all<{ transaction_id: string }>();
-      const processedSet = new Set(processed.results.map((r) => r.transaction_id));
+      const CHUNK_SIZE = 80;
+      const processedResults: { transaction_id: string }[] = [];
+      for (let i = 0; i < txIds.length; i += CHUNK_SIZE) {
+        const chunk = txIds.slice(i, i + CHUNK_SIZE);
+        const placeholders = chunk.map(() => '?').join(',');
+        const rows = await session
+          .prepare(
+            `SELECT transaction_id FROM processed_transactions WHERE account_id = ? AND transaction_id IN (${placeholders})`,
+          )
+          .bind(accountId, ...chunk)
+          .all<{ transaction_id: string }>();
+        processedResults.push(...rows.results);
+      }
+      const processedSet = new Set(processedResults.map((r) => r.transaction_id));
       const deduped = dedupeTransactions(txns, processedSet);
 
       if (deduped.length === 0) return; // 全部已處理（重複提交被吸收）
