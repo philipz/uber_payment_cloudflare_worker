@@ -17,7 +17,7 @@
     "@cloudflare/workers-types": "^5.20260820.1",
     "@informalsystems/quint": "^0.32.0",
     "@types/node": "^22.20.1",
-    "js-yaml": "^5.3.0",
+    "js-yaml": "^5.4.1",
     "minimatch": "^10.2.6",
     "typescript": "^5.7.2",
     "vitest": "^4.1.0",
